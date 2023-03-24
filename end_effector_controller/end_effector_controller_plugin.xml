@@ -1,0 +1,11 @@
+<library path="end_effector_controller">
+
+  <class name="end_effector_controller/EndEffectorControl"
+         type="end_effector_controller::EndEffectorControl"
+         base_class_type="controller_interface::ControllerInterface">
+    <description>
+      The CartesianControllerHandle exposes an interactive marker for end-effector control in Rviz.
+    </description>
+  </class>
+
+</library>
