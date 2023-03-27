@@ -152,7 +152,7 @@ class EndEffectorControl : public controller_interface::ControllerInterface
     Eigen::Vector3d     m_target_wrench;
     Eigen::Vector3d     m_ft_sensor_wrench;
     Eigen::Vector3d     errorOrientation;
-    geometry_msgs::msg::Point position;
+    geometry_msgs::msg::Point starting_position;
     // // Interactive marker
     // std::shared_ptr<
     //   interactive_markers::InteractiveMarkerServer> m_server;

@@ -48,6 +48,7 @@
 #include <urdf/model.h>
 
 
+
 namespace end_effector_controller {
 
 EndEffectorControl::EndEffectorControl() {}
@@ -70,7 +71,16 @@ EndEffectorControl::on_activate(const rclcpp_lifecycle::State& previous_state)
   }
 
   m_current_pose = getEndEffectorPose();
-  position = m_current_pose.pose.position;
+  starting_position = m_current_pose.pose.position;
+
+  m_ft_sensor_wrench(0) = 0.0;
+  m_ft_sensor_wrench(1) = 0.0;
+  m_ft_sensor_wrench(2) = 0.0;
+
+  m_target_wrench(0) = 0.0;
+  m_target_wrench(1) = 0.0;
+  m_target_wrench(2) = 0.0;
+
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
@@ -88,8 +98,8 @@ controller_interface::return_type EndEffectorControl::update(const rclcpp::Time&
 {
   // Get the end effector pose 
   m_current_pose = getEndEffectorPose();
-  m_current_pose.pose.position.x = position.x;
-  m_current_pose.pose.position.y = position.y;
+  m_current_pose.pose.position.x = starting_position.x;
+  m_current_pose.pose.position.y = starting_position.y;
 
   // apply a proportional control to keep the end effector perpendicular to the surface
   m_current_pose.pose.orientation = setEndEffectorOrientation(m_current_pose.pose.orientation);
@@ -224,10 +234,28 @@ geometry_msgs::msg::Quaternion EndEffectorControl::setEndEffectorOrientation(geo
   if ( m_target_wrench[0] == 0.0 && m_target_wrench[1] == 0.0 && m_target_wrench[2] == 0.0 ){
     return pos;
   }
+  // Normalize the vectors
+  m_ft_sensor_wrench.normalize();
+  m_target_wrench.normalize();
 
-  errorOrientation[0] = - 0.1 * ( m_ft_sensor_wrench[0] + m_target_wrench[0]);
-  errorOrientation[1] = - 0.1 * ( m_ft_sensor_wrench[1] + m_target_wrench[1]);
-  errorOrientation[2] = - 0.1 * ( m_ft_sensor_wrench[2] + m_target_wrench[2]);
+  // Calculate the cross product of the normalized vectors
+  errorOrientation = m_ft_sensor_wrench.cross(m_target_wrench);
+
+  // Calculate the dot product of the normalized vectors
+  double cos_theta = m_ft_sensor_wrench.dot(m_target_wrench);
+
+  // Calculate the angle between the vectors using the inverse cosine function
+  double theta = std::acos(cos_theta);
+
+  // Create a quaternion with the angle-axis representation
+  Eigen::Quaterniond q_new(Eigen::AngleAxisd(theta, errorOrientation));
+
+  // Define a previous quaternion rotation
+  Eigen::Quaterniond q_current(pos.x,pos.y,pos.z,pos.w);
+
+  // Multiply the two quaternions together to get the new rotation
+  Eigen::Quaterniond q_final = q_new * q_current;
+
 
   geometry_msgs::msg::Point pt;
   pt.x = errorOrientation[0];
@@ -236,18 +264,22 @@ geometry_msgs::msg::Quaternion EndEffectorControl::setEndEffectorOrientation(geo
 
   m_error_publisher->publish(pt);
   
-  double angle = errorOrientation.norm();
-  Eigen::Vector3d axis = errorOrientation.normalized();
-  
+  RCLCPP_INFO_STREAM_ONCE(get_node()->get_logger(), "q_current" << q_current);
+  RCLCPP_INFO_STREAM_ONCE(get_node()->get_logger(), "q_new" << q_new);
+  RCLCPP_INFO_STREAM_ONCE(get_node()->get_logger(), "m_ft_sensor_wrench" << m_ft_sensor_wrench);
+  RCLCPP_INFO_STREAM_ONCE(get_node()->get_logger(), "m_target_wrench" << m_target_wrench);
+  RCLCPP_INFO_STREAM_ONCE(get_node()->get_logger(), "errorOrientation" << errorOrientation);
+  RCLCPP_INFO_STREAM_ONCE(get_node()->get_logger(), "q_final" << q_final);
 
-  Eigen::Quaterniond q_current(pos.x,pos.y,pos.z,pos.w), q_next(Eigen::AngleAxisd(angle, axis)), tmp;
-  
-  tmp = q_current * q_next;
+  // Multiply the two quaternions together to get the new rotation
+  Eigen::Quaterniond q_interp = q_current.slerp(0.1, q_final);
 
-  pos.x = (double)tmp.x();
-  pos.y = (double)tmp.y();
-  pos.z = (double)tmp.z();
-  pos.w = (double)tmp.w();
+  pos.x = (double)q_interp.x();
+  pos.y = (double)q_interp.y();
+  pos.z = (double)q_interp.z();
+  pos.w = (double)q_interp.w();
+
+
   return  pos;
 }
 
@@ -295,11 +327,36 @@ void EndEffectorControl::targetWrenchCallback(const geometry_msgs::msg::WrenchSt
   tmp[1] = wrench->wrench.force.y;
   tmp[2] = wrench->wrench.force.z;
 
-  m_target_wrench(0) = tmp[0];
-  m_target_wrench(1) = tmp[1];
-  m_target_wrench(2) = tmp[2];
+  m_target_wrench(0) = -tmp[0];
+  m_target_wrench(1) = -tmp[1];
+  m_target_wrench(2) = -tmp[2];
 
   m_target_wrench = m_target_wrench.normalized();
+}
+
+void CartesianForceController::setFtSensorReferenceFrame(const std::string& new_ref)
+{
+  // Compute static transform from the force torque sensor to the new reference
+  // frame of interest.
+  m_new_ft_sensor_ref = new_ref;
+
+  // Joint positions should cancel out, i.e. it doesn't matter as long as they
+  // are the same for both transformations.
+  KDL::JntArray jnts(EndEffectorControl::m_ik_solver->getPositions());
+
+  KDL::Frame sensor_ref;
+  Base::m_forward_kinematics_solver->JntToCart(
+      jnts,
+      sensor_ref,
+      m_ft_sensor_ref_link);
+
+  KDL::Frame new_sensor_ref;
+  Base::m_forward_kinematics_solver->JntToCart(
+      jnts,
+      new_sensor_ref,
+      m_new_ft_sensor_ref);
+
+  m_ft_sensor_transform = new_sensor_ref.Inverse() * sensor_ref;
 }
 
 } // namespace cartesian_controller_handles
