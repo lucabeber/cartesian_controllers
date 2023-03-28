@@ -107,7 +107,7 @@ controller_interface::return_type EndEffectorControl::update(const rclcpp::Time&
   m_current_pose.header.stamp    = get_node()->now();
   m_current_pose.header.frame_id = m_robot_base_link;
   m_pose_publisher->publish(m_current_pose);
-
+  
   return controller_interface::return_type::OK;
 }
 
@@ -251,7 +251,7 @@ geometry_msgs::msg::Quaternion EndEffectorControl::setEndEffectorOrientation(geo
   Eigen::Quaterniond q_new(Eigen::AngleAxisd(theta, errorOrientation));
 
   // Define a previous quaternion rotation
-  Eigen::Quaterniond q_current(pos.x,pos.y,pos.z,pos.w);
+  Eigen::Quaterniond q_current(pos.w,pos.x,pos.y,pos.z);
 
   // Multiply the two quaternions together to get the new rotation
   Eigen::Quaterniond q_final = q_new * q_current;
@@ -264,21 +264,22 @@ geometry_msgs::msg::Quaternion EndEffectorControl::setEndEffectorOrientation(geo
 
   m_error_publisher->publish(pt);
   
-  RCLCPP_INFO_STREAM_ONCE(get_node()->get_logger(), "q_current" << q_current);
-  RCLCPP_INFO_STREAM_ONCE(get_node()->get_logger(), "q_new" << q_new);
-  RCLCPP_INFO_STREAM_ONCE(get_node()->get_logger(), "m_ft_sensor_wrench" << m_ft_sensor_wrench);
-  RCLCPP_INFO_STREAM_ONCE(get_node()->get_logger(), "m_target_wrench" << m_target_wrench);
-  RCLCPP_INFO_STREAM_ONCE(get_node()->get_logger(), "errorOrientation" << errorOrientation);
-  RCLCPP_INFO_STREAM_ONCE(get_node()->get_logger(), "q_final" << q_final);
+  RCLCPP_INFO_STREAM(get_node()->get_logger(), "q_current" << q_current);
+  RCLCPP_INFO_STREAM(get_node()->get_logger(), "q_new" << q_new);
+  RCLCPP_INFO_STREAM(get_node()->get_logger(), "m_ft_sensor_wrench" << m_ft_sensor_wrench);
+  RCLCPP_INFO_STREAM(get_node()->get_logger(), "m_target_wrench" << m_target_wrench);
+  RCLCPP_INFO_STREAM(get_node()->get_logger(), "errorOrientation" << errorOrientation);
+  RCLCPP_INFO_STREAM(get_node()->get_logger(), "q_final" << q_final);
 
   // Multiply the two quaternions together to get the new rotation
-  Eigen::Quaterniond q_interp = q_current.slerp(0.1, q_final);
+  Eigen::Quaterniond q_interp = q_current.slerp(0.5, q_final);
 
   pos.x = (double)q_interp.x();
   pos.y = (double)q_interp.y();
   pos.z = (double)q_interp.z();
   pos.w = (double)q_interp.w();
 
+  RCLCPP_INFO_STREAM(get_node()->get_logger(), "q_interp" << q_interp);
 
   return  pos;
 }
@@ -313,9 +314,9 @@ void EndEffectorControl::ftSensorWrenchCallback(const geometry_msgs::msg::Wrench
   tmp[1] = wrench->wrench.force.y;
   tmp[2] = wrench->wrench.force.z;
 
-  m_ft_sensor_wrench(0) = tmp[0];
-  m_ft_sensor_wrench(1) = tmp[1];
-  m_ft_sensor_wrench(2) = tmp[2];
+  m_ft_sensor_wrench(0) = -tmp[0];
+  m_ft_sensor_wrench(1) = -tmp[1];
+  m_ft_sensor_wrench(2) = -tmp[2];
 
   m_ft_sensor_wrench = m_ft_sensor_wrench.normalized();
 }
@@ -327,37 +328,37 @@ void EndEffectorControl::targetWrenchCallback(const geometry_msgs::msg::WrenchSt
   tmp[1] = wrench->wrench.force.y;
   tmp[2] = wrench->wrench.force.z;
 
-  m_target_wrench(0) = -tmp[0];
-  m_target_wrench(1) = -tmp[1];
-  m_target_wrench(2) = -tmp[2];
+  m_target_wrench(0) = tmp[0];
+  m_target_wrench(1) = tmp[1];
+  m_target_wrench(2) = tmp[2];
 
   m_target_wrench = m_target_wrench.normalized();
 }
 
-void CartesianForceController::setFtSensorReferenceFrame(const std::string& new_ref)
-{
-  // Compute static transform from the force torque sensor to the new reference
-  // frame of interest.
-  m_new_ft_sensor_ref = new_ref;
+// void CartesianForceController::setFtSensorReferenceFrame(const std::string& new_ref)
+// {
+//   // Compute static transform from the force torque sensor to the new reference
+//   // frame of interest.
+//   m_new_ft_sensor_ref = new_ref;
 
-  // Joint positions should cancel out, i.e. it doesn't matter as long as they
-  // are the same for both transformations.
-  KDL::JntArray jnts(EndEffectorControl::m_ik_solver->getPositions());
+//   // Joint positions should cancel out, i.e. it doesn't matter as long as they
+//   // are the same for both transformations.
+//   KDL::JntArray jnts(EndEffectorControl::m_ik_solver->getPositions());
 
-  KDL::Frame sensor_ref;
-  Base::m_forward_kinematics_solver->JntToCart(
-      jnts,
-      sensor_ref,
-      m_ft_sensor_ref_link);
+//   KDL::Frame sensor_ref;
+//   Base::m_forward_kinematics_solver->JntToCart(
+//       jnts,
+//       sensor_ref,
+//       m_ft_sensor_ref_link);
 
-  KDL::Frame new_sensor_ref;
-  Base::m_forward_kinematics_solver->JntToCart(
-      jnts,
-      new_sensor_ref,
-      m_new_ft_sensor_ref);
+//   KDL::Frame new_sensor_ref;
+//   Base::m_forward_kinematics_solver->JntToCart(
+//       jnts,
+//       new_sensor_ref,
+//       m_new_ft_sensor_ref);
 
-  m_ft_sensor_transform = new_sensor_ref.Inverse() * sensor_ref;
-}
+//   m_ft_sensor_transform = new_sensor_ref.Inverse() * sensor_ref;
+// }
 
 } // namespace cartesian_controller_handles
 
