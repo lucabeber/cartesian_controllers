@@ -55,6 +55,7 @@
 #include <kdl/chain.hpp>
 #include <kdl/chainfksolvervel_recursive.hpp>
 #include <memory>
+#include <rclcpp/rclcpp.hpp>
 #include <queue>
 
 #define _USE_MATH_DEFINES
@@ -153,12 +154,6 @@ class EndEffectorControl : public controller_interface::ControllerInterface
      */
     geometry_msgs::msg::Quaternion setEndEffectorOrientation(geometry_msgs::msg::Quaternion pos);
 
-    void gridPosition();
-    void surfaceApproach();
-    void tissuePalpation(const rclcpp::Time &time);
-    void startingHigh();
-    void newStartingPosition();
-
     void ftSensorWrenchCallback(const geometry_msgs::msg::WrenchStamped::SharedPtr wrench);
     void targetWrenchCallback(const geometry_msgs::msg::WrenchStamped::SharedPtr wrench);
 
@@ -180,7 +175,6 @@ class EndEffectorControl : public controller_interface::ControllerInterface
       KDL::ChainFkSolverVel_recursive>  m_fk_solver;
 
     geometry_msgs::msg::PoseStamped  m_current_pose;
-    geometry_msgs::msg::PoseStamped  m_target_pose;
     geometry_msgs::msg::WrenchStamped  m_sinusoidal_force;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr  m_pose_publisher;
     rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr  m_data_publisher;
@@ -194,12 +188,13 @@ class EndEffectorControl : public controller_interface::ControllerInterface
     Eigen::Vector3d     m_ft_sensor_wrench;
     Eigen::Vector3d     errorOrientation;
     Eigen::Vector3d     cartVel;
-    geometry_msgs::msg::Point m_starting_position;
-    geometry_msgs::msg::Point m_grid_position;
-    uint m_phase;
-    uint m_palpation_number;
-    double m_surface;
-    double m_prev_force;
+    geometry_msgs::msg::Point starting_position;
+    uint tr_counter;
+    // // Interactive marker
+    // std::shared_ptr<
+    //   interactive_markers::InteractiveMarkerServer> m_server;
+
+    // visualization_msgs::msg::InteractiveMarker           m_marker; //!< Controller handle for RViz
 
     public:
     // Simulated (true) system state
