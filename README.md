@@ -1,15 +1,8 @@
 ![build badge](https://github.com/fzi-forschungszentrum-informatik/cartesian_controllers/actions/workflows/industrial_ci_foxy_action.yml/badge.svg)
 ![build badge](https://github.com/fzi-forschungszentrum-informatik/cartesian_controllers/actions/workflows/industrial_ci_galactic_action.yml/badge.svg)
 ![build badge](https://github.com/fzi-forschungszentrum-informatik/cartesian_controllers/actions/workflows/industrial_ci_humble_action.yml/badge.svg)
+![build badge](https://github.com/fzi-forschungszentrum-informatik/cartesian_controllers/actions/workflows/industrial_ci_iron_action.yml/badge.svg)
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
-
----
-
-This is the **ROS2** version of the `cartesian_controllers`.
-Checkout each controller's updated README.md with detailed explanations.
-Any issue, PR, or feedback on *your* special robot and use case is highly appreciated :)
-
----
 
 # Cartesian Controllers
 This package provides a set of Cartesian `motion`, `force` and `compliance controllers` for the `ros2_control` framework.
@@ -23,12 +16,13 @@ The controllers from this package are designed to trade smooth and stable behavi
 appropriate, and behave physically plausible for targets outside the robots reach.
 The package is for users who require interfaces to direct task space control
 without the need for collision checking.
-See [this talk at ROSCon'19](https://vimeo.com/378682968) and [the
+
+The **ROS1** version is [here](https://github.com/fzi-forschungszentrum-informatik/cartesian_controllers/tree/ros1). Also see [this talk at ROSCon'19](https://vimeo.com/378682968) and [these
 slides](https://roscon.ros.org/2019/talks/roscon2019_cartesiancontrollers.pdf)
-to get an overview.
+to get a brief overview.
 
 ## Why this package?
-Users may refer to `MoveIt` for end-effector motion planning, but 
+Users may refer to `MoveIt` for end-effector motion planning, but
 integrating a full planning stack is often unnecessary for simple applications.
 Additionally, there are a lot of use cases where direct control in task space is mandatory:
 dynamic following of target poses, such as **visual servoing**, **teleoperation**, **Cartesian teaching,** or
@@ -38,7 +32,7 @@ This package provides such a controller suite for the [ros2_control](https://con
 ## Installation
 Switch into the `src` folder of your current ROS2 workspace and
 ```bash
-git clone -b ros2-devel git@github.com:fzi-forschungszentrum-informatik/cartesian_controllers.git
+git clone -b ros2 https://github.com/fzi-forschungszentrum-informatik/cartesian_controllers.git
 rosdep install --from-paths ./ --ignore-src -y
 cd ..
 colcon build --packages-skip cartesian_controller_simulation cartesian_controller_tests --cmake-args -DCMAKE_BUILD_TYPE=Release
@@ -64,6 +58,7 @@ and try things. Here are some quick tutorials with further details:
 - [Cartesian compliance controller](cartesian_compliance_controller/README.md)
 - [Cartesian controller handles](cartesian_controller_handles/README.md)
 - [Teleoperation](cartesian_controller_utilities/README.md)
+- [Example on Universal Robots](https://github.com/stefanscherzinger/cartesian_controllers_universal_robots/tree/ros2)
 
 ## Citation and further reading
 If you use the *cartesian_controllers* in your research projects, please
@@ -87,3 +82,5 @@ If you are interested in more details, have a look at
 - *Contact Skill Imitation Learning for Robot-Independent Assembly Programming* ([Paper](https://arxiv.org/pdf/1908.06272.pdf))
 - *Human-Inspired Compliant Controllers for Robotic Assembly* ([PhD Thesis](https://publikationen.bibliothek.kit.edu/1000139834), especially Chapter 4)
 
+Here's an application of imitation learning for force-controlled assembly on a UR10e
+- *Learning Human-Inspired Force Strategies for Robotic Assembly* ([Paper](https://arxiv.org/abs/2303.12440))

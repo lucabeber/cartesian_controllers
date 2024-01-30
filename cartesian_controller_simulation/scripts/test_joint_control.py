@@ -2,17 +2,33 @@
 ################################################################################
 # Copyright 2022 FZI Research Center for Information Technology
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+# 1. Redistributions of source code must retain the above copyright notice,
+# this list of conditions and the following disclaimer.
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+# this list of conditions and the following disclaimer in the documentation
+# and/or other materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its
+# contributors may be used to endorse or promote products derived from this
+# software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+################################################################################
+
 """
 Bring our test robot into a predefined joint configuration
 
@@ -32,12 +48,14 @@ from builtin_interfaces.msg import Duration
 
 class JointGui(Node):
     def __init__(self):
-        super().__init__('joint_gui')
+        super().__init__("joint_gui")
 
         # Check the available ROS2 nodes for the joint trajectory controller.
         # We assume it's called /joint_trajectory_controller.
-        nodes = subprocess.check_output("ros2 node list", stderr=subprocess.STDOUT, shell=True)
-        nodes = nodes.decode("utf-8").split('\n')
+        nodes = subprocess.check_output(
+            "ros2 node list", stderr=subprocess.STDOUT, shell=True
+        )
+        nodes = nodes.decode("utf-8").split("\n")
         if "/joint_trajectory_controller" in nodes:
             controller = "/joint_trajectory_controller"
         else:
@@ -47,25 +65,33 @@ class JointGui(Node):
 
         # Control the hand with publishing joint trajectories.
         self.publisher = self.create_publisher(
-            JointTrajectory, f'{controller}/joint_trajectory', 10)
+            JointTrajectory, f"{controller}/joint_trajectory", 10
+        )
 
         # Configuration presets
         self.joint_names = [
-            'joint1',
-            'joint2',
-            'joint3',
-            'joint4',
-            'joint5',
-            'joint6',
+            "joint1",
+            "joint2",
+            "joint3",
+            "joint4",
+            "joint5",
+            "joint6",
         ]
         self.fully_streched = [0, 0, 0, 0, 0, 0]
-        self.home = [np.pi/4, -np.pi/2, np.pi/2, -np.pi/2, -np.pi/2, 2 * np.pi]
+        self.home = [
+            np.pi / 4,
+            -np.pi / 2,
+            np.pi / 2,
+            -np.pi / 2,
+            -np.pi / 2,
+            2 * np.pi,
+        ]
 
     def gui(self):
-        """ A GUI with a single slider for opening/closing the JointGui """
+        """A GUI with a single slider for opening/closing the JointGui"""
         self.percent = 100
         self.window = Tk()
-        self.window.title('Schunk SVH')
+        self.window.title("joint_gui")
         self.slider = Scale(self.window, from_=self.percent, to=0)
         self.slider.set(0)
         self.slider.bind("<ButtonRelease-1>", self.slider_changed)
@@ -77,12 +103,13 @@ class JointGui(Node):
         rclpy.spin_once(self, timeout_sec=0)
 
     def publish(self, opening):
-        """ Publish a new joint trajectory with an interpolated state
+        """Publish a new joint trajectory with an interpolated state
 
         We scale linearly with opening=[0,1] between `fully_streched` and `home`.
         """
-        jpos = opening * np.array(self.home) + \
-            (self.percent - opening) * np.array(self.fully_streched)
+        jpos = opening * np.array(self.home) + (self.percent - opening) * np.array(
+            self.fully_streched
+        )
         jpos = jpos / self.percent
         msg = JointTrajectory()
         msg.joint_names = self.joint_names
@@ -101,5 +128,5 @@ def main(args=None):
     rclpy.shutdown()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
