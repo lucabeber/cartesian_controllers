@@ -189,12 +189,14 @@ ctrl::Vector6D CartesianComplianceController::computeComplianceError()
   tmp[5] = get_node()->get_parameter("stiffness.rot_z").as_double();
 
   m_stiffness = tmp.asDiagonal();
-
+  m_damping = 2.0 * m_stiffness.cwiseSqrt();
+  
   ctrl::Vector6D net_force =
-
     // Spring force in base orientation
     Base::displayInBaseLink(m_stiffness, m_compliance_ref_link) * MotionBase::computeMotionError()
-
+    // Damping force in base orientation
+    - Base::displayInBaseLink(m_damping, m_compliance_ref_link) *
+        Base::m_ik_solver->getEndEffectorVel()
     // Sensor and target force in base orientation
     + ForceBase::computeForceError();
 

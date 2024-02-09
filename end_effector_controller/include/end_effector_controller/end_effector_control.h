@@ -40,14 +40,6 @@
 #ifndef END_EFFECTOR_CONTROL_H_INCLUDED
 #define END_EFFECTOR_CONTROL_H_INCLUDED
 
-#include "cartesian_controller_base/ROS2VersionConfig.h"
-#include "geometry_msgs/msg/wrench_stamped.hpp"
-#include "geometry_msgs/msg/detail/pose_stamped__struct.hpp"
-#include "geometry_msgs/msg/pose_stamped.hpp"
-#include "std_msgs/msg/float64_multi_array.hpp"
-#include "rclcpp/publisher.hpp"
-#include "visualization_msgs/msg/interactive_marker.hpp"
-#include "visualization_msgs/msg/interactive_marker_feedback.hpp"
 #include <controller_interface/controller_interface.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <hardware_interface/loaned_state_interface.hpp>
@@ -57,9 +49,16 @@
 #include <memory>
 #include <queue>
 
+#include "cartesian_controller_base/ROS2VersionConfig.h"
+#include "geometry_msgs/msg/detail/pose_stamped__struct.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
+#include "geometry_msgs/msg/wrench_stamped.hpp"
+#include "rclcpp/publisher.hpp"
+#include "std_msgs/msg/float64_multi_array.hpp"
+#include "visualization_msgs/msg/interactive_marker.hpp"
+#include "visualization_msgs/msg/interactive_marker_feedback.hpp"
+
 #define _USE_MATH_DEFINES
-#include <cmath>
-#include <vector>
 #include <Eigen/Dense>
 
 #include "SystemModelF.hpp"
@@ -67,7 +66,6 @@
 
 #include <end_effector_controller/kalman/ExtendedKalmanFilter.hpp>
 #include <end_effector_controller/kalman/UnscentedKalmanFilter.hpp>
-
 #include <iostream>
 #include <random>
 #include <chrono>
@@ -100,130 +98,129 @@ namespace end_effector_controller
  */
 class EndEffectorControl : public controller_interface::ControllerInterface
 {
-  public:
-    EndEffectorControl();
-    ~EndEffectorControl();
+public:
+  EndEffectorControl();
+  ~EndEffectorControl();
 
 #if defined CARTESIAN_CONTROLLERS_GALACTIC || defined CARTESIAN_CONTROLLERS_HUMBLE
-    virtual LifecycleNodeInterface::CallbackReturn on_init() override;
+  virtual LifecycleNodeInterface::CallbackReturn on_init() override;
 #elif defined CARTESIAN_CONTROLLERS_FOXY
-    virtual controller_interface::return_type init(const std::string & controller_name) override;
+  virtual controller_interface::return_type init(const std::string & controller_name) override;
 #endif
 
-    rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn on_configure(
-        const rclcpp_lifecycle::State & previous_state) override;
+  rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn on_configure(
+    const rclcpp_lifecycle::State & previous_state) override;
 
-    rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn on_activate(
-        const rclcpp_lifecycle::State & previous_state) override;
+  rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn on_activate(
+    const rclcpp_lifecycle::State & previous_state) override;
 
-    rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn on_deactivate(
-        const rclcpp_lifecycle::State & previous_state) override;
+  rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn on_deactivate(
+    const rclcpp_lifecycle::State & previous_state) override;
 
-    controller_interface::InterfaceConfiguration command_interface_configuration() const override;
-    controller_interface::InterfaceConfiguration state_interface_configuration() const override;
-    
-    controller_interface::return_type update(const rclcpp::Time & time, const rclcpp::Duration & period) override;
+  controller_interface::InterfaceConfiguration command_interface_configuration() const override;
+  controller_interface::InterfaceConfiguration state_interface_configuration() const override;
 
+  controller_interface::return_type update(const rclcpp::Time & time,
+                                           const rclcpp::Duration & period) override;
 
-
-  private:
-    /**
+private:
+  /**
      * @brief Move visual marker in RViz according to user interaction
      *
      * This function also stores the marker pose internally.
      *
      * @param feedback The message containing the current pose of the marker
      */
-    void updateMotionControlCallback(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr& feedback);
+  void updateMotionControlCallback(
+    const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr & feedback);
 
-    /**
+  /**
      * @brief Get the current pose of the specified end-effector
      *
      * @return The current end-effector pose with respect to the specified base link
      */
-    geometry_msgs::msg::PoseStamped getEndEffectorPose();
+  geometry_msgs::msg::PoseStamped getEndEffectorPose();
 
-    geometry_msgs::msg::PoseStamped getEndEffectorVel();
-    /**
+  geometry_msgs::msg::PoseStamped getEndEffectorVel();
+  /**
      * @brief Proportional controller to set the orientation perpendicular to the surfae
      * 
      * @param currentPos The end effector current pose
      * 
      * @return The new orientation of the end effector
      */
-    geometry_msgs::msg::Quaternion setEndEffectorOrientation(geometry_msgs::msg::Quaternion pos);
+  geometry_msgs::msg::Quaternion setEndEffectorOrientation(geometry_msgs::msg::Quaternion pos);
 
-    void gridPosition();
-    void surfaceApproach();
-    void tissuePalpation(const rclcpp::Time &time);
-    void startingHigh();
-    void newStartingPosition();
+  void gridPosition();
+  void surfaceApproach();
+  void tissuePalpation(const rclcpp::Time & time);
+  void startingHigh();
+  void newStartingPosition();
+  void publishDataEE(const rclcpp::Time & time);
 
-    void ftSensorWrenchCallback(const geometry_msgs::msg::WrenchStamped::SharedPtr wrench);
-    void targetWrenchCallback(const geometry_msgs::msg::WrenchStamped::SharedPtr wrench);
+  void ftSensorWrenchCallback(const geometry_msgs::msg::WrenchStamped::SharedPtr wrench);
+  void targetWrenchCallback(const geometry_msgs::msg::WrenchStamped::SharedPtr wrench);
 
-    // Handles to the joints
-    std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface> >
-      m_joint_state_pos_handles;
-    std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface> >
-      m_joint_state_vel_handles;
+  // Handles to the joints
+  std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface> >
+    m_joint_state_pos_handles;
+  std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface> >
+    m_joint_state_vel_handles;
 
-    std::vector<std::string>  m_joint_names;
-    std::vector<std::string> m_state_interface_types;
+  std::vector<std::string> m_joint_names;
+  std::vector<std::string> m_state_interface_types;
 
-    // Kinematics
-    std::string   m_robot_base_link;
-    std::string   m_end_effector_link;
-    std::string   m_target_frame_topic;
-    KDL::Chain    m_robot_chain;
-    std::shared_ptr<
-      KDL::ChainFkSolverVel_recursive>  m_fk_solver;
+  // Kinematics
+  std::string m_robot_base_link;
+  std::string m_end_effector_link;
+  std::string m_target_frame_topic;
+  KDL::Chain m_robot_chain;
+  std::shared_ptr<KDL::ChainFkSolverVel_recursive> m_fk_solver;
 
-    geometry_msgs::msg::PoseStamped  m_current_pose;
-    geometry_msgs::msg::PoseStamped  m_target_pose;
-    geometry_msgs::msg::WrenchStamped  m_sinusoidal_force;
-    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr  m_pose_publisher;
-    rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr  m_data_publisher;
-    rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr  m_estimator_publisher;
-    // rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr  m_elasticity_publisher;
-    // rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr  m_position_publisher;
-    // rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr  m_force_publisher;
-    rclcpp::Subscription<geometry_msgs::msg::WrenchStamped>::SharedPtr m_target_wrench_subscriber;
-    rclcpp::Subscription<geometry_msgs::msg::WrenchStamped>::SharedPtr m_ft_sensor_wrench_subscriber;
-    Eigen::Vector3d     m_target_wrench;
-    Eigen::Vector3d     m_ft_sensor_wrench;
-    Eigen::Vector3d     errorOrientation;
-    Eigen::Vector3d     cartVel;
-    geometry_msgs::msg::Point m_starting_position;
-    geometry_msgs::msg::Point m_grid_position;
-    uint m_phase;
-    uint m_palpation_number;
-    double m_surface;
-    double m_prev_force;
+  geometry_msgs::msg::PoseStamped m_current_pose;
+  geometry_msgs::msg::PoseStamped m_target_pose;
+  geometry_msgs::msg::WrenchStamped m_sinusoidal_force;
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr m_pose_publisher;
+  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr m_data_publisher;
+  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr m_estimator_publisher;
+  // rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr  m_elasticity_publisher;
+  // rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr  m_position_publisher;
+  // rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr  m_force_publisher;
+  rclcpp::Subscription<geometry_msgs::msg::WrenchStamped>::SharedPtr m_target_wrench_subscriber;
+  rclcpp::Subscription<geometry_msgs::msg::WrenchStamped>::SharedPtr m_ft_sensor_wrench_subscriber;
+  Eigen::Vector3d m_target_wrench;
+  Eigen::Vector3d m_ft_sensor_wrench;
+  Eigen::Vector3d errorOrientation;
+  Eigen::Vector3d cartVel;
+  geometry_msgs::msg::Point m_starting_position;
+  geometry_msgs::msg::Point m_grid_position;
+  uint m_phase;
+  uint m_palpation_number;
+  double m_surface;
+  double m_prev_force;
 
-    public:
-    // Simulated (true) system state
-    State x;
+public:
+  // Simulated (true) system state
+  State x;
 
-    // System
-    SystemModel sys;
+  // System
+  SystemModel sys;
 
-    // Measurement models
-    ForceModel fm;
+  // Measurement models
+  ForceModel fm;
 
-    Kalman::ExtendedKalmanFilter<State> ekf;
+  Kalman::ExtendedKalmanFilter<State> ekf;
 
-    Kalman::Covariance<State> cov;
+  Kalman::Covariance<State> cov;
 
-    // Previos position
-    float prev_pos;
-    rclcpp::Time initial_time;
-    rclcpp::Time prec_time;
+  // Previos position
+  float prev_pos;
+  rclcpp::Time initial_time;
+  rclcpp::Time prec_time;
 
-    std::queue<std_msgs::msg::Float64MultiArray> msgs_queue;
-
+  std::queue<std_msgs::msg::Float64MultiArray> msgs_queue;
 };
 
-} // cartesian_controller_handles
+}  // namespace end_effector_controller
 
 #endif
