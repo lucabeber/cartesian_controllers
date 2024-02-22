@@ -515,6 +515,8 @@ geometry_msgs::msg::PoseStamped EndEffectorControl::getEndEffectorPose()
     velocities(i) = m_joint_state_vel_handles[i].get().get_value();
   }
 
+  // Print velocities
+  RCLCPP_INFO_STREAM(get_node()->get_logger(), "vel arrr: " << velocities.data);
   KDL::JntArrayVel joint_data(positions, velocities);
   KDL::FrameVel tmp;
   m_fk_solver->JntToCart(joint_data, tmp);
@@ -525,10 +527,11 @@ geometry_msgs::msg::PoseStamped EndEffectorControl::getEndEffectorPose()
   current.pose.position.z = tmp.p.p.z();
   tmp.M.R.GetQuaternion(current.pose.orientation.x, current.pose.orientation.y,
                         current.pose.orientation.z, current.pose.orientation.w);
-
+  
   cartVel(0) = tmp.p.v.x();
   cartVel(1) = tmp.p.v.y();
   cartVel(2) = tmp.p.v.z();
+
   return current;
 }
 
