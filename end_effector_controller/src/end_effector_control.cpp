@@ -232,15 +232,14 @@ void EndEffectorControl::gridPosition()
 void EndEffectorControl::surfaceApproach()
 {
   // If the detected force in the z direction is greater than 5 N the phase is finished
-  if (m_ft_sensor_wrench(2) < -5.0)
+  if (m_current_pose.pose.position.z < -0.2695)
   {
     std::cout << "Phase 3" << std::endl;
     m_phase = 3;
-    m_surface = m_current_pose.pose.position.z;
+    m_surface = m_grid_position.z;
     m_target_pose.pose.position.x = m_grid_position.x;
     m_target_pose.pose.position.y = m_grid_position.y;
-    m_target_pose.pose.position.z = m_current_pose.pose.position.z;
-    m_grid_position.z = m_current_pose.pose.position.z;
+    m_target_pose.pose.position.z = m_grid_position.z;
     initial_time = get_node()->now();
   }
   // The end effector will move in the z direction until it touches the surface of the tissue
@@ -266,7 +265,7 @@ void EndEffectorControl::tissuePalpation(const rclcpp::Time & time)
   m_target_pose.pose.position.y = m_grid_position.y;
   m_target_pose.pose.position.z =
     m_grid_position.z -
-    0.008 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 2);
+    0.0015 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 2);
   // prova di carico
   // std::cout << "x: " << m_target_pose.pose.position.x << std::endl;
   // std::cout << "time: " << time.nanoseconds() * 1e-9 - initial_time.nanoseconds()*1e-9<< std::endl;
@@ -515,8 +514,6 @@ geometry_msgs::msg::PoseStamped EndEffectorControl::getEndEffectorPose()
     velocities(i) = m_joint_state_vel_handles[i].get().get_value();
   }
 
-  // Print velocities
-  RCLCPP_INFO_STREAM(get_node()->get_logger(), "vel arrr: " << velocities.data);
   KDL::JntArrayVel joint_data(positions, velocities);
   KDL::FrameVel tmp;
   m_fk_solver->JntToCart(joint_data, tmp);
