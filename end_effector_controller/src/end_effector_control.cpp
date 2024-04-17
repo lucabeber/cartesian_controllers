@@ -231,8 +231,8 @@ void EndEffectorControl::gridPosition()
 
 void EndEffectorControl::surfaceApproach()
 {
-  // If the detected force in the z direction is greater than 5 N the phase is finished
-  if (m_current_pose.pose.position.z < -0.2695)
+  // If the detected force in the z direction is greater than 10 N the phase is finished
+  if (m_ft_sensor_wrench(2) < -15.0)
   {
     std::cout << "Phase 3" << std::endl;
     m_phase = 3;
@@ -265,7 +265,7 @@ void EndEffectorControl::tissuePalpation(const rclcpp::Time & time)
   m_target_pose.pose.position.y = m_grid_position.y;
   m_target_pose.pose.position.z =
     m_grid_position.z -
-    0.0015 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 2);
+    0.004 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 2);//- 0.001 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 4);
   // prova di carico
   // std::cout << "x: " << m_target_pose.pose.position.x << std::endl;
   // std::cout << "time: " << time.nanoseconds() * 1e-9 - initial_time.nanoseconds()*1e-9<< std::endl;
@@ -313,6 +313,8 @@ void EndEffectorControl::tissuePalpation(const rclcpp::Time & time)
   // If the time is greater than 5 seconds the phase is finished
   if (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9 > 20)
   {
+    m_grid_position.z = m_grid_position.z -
+    0.0015 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 2);
     std::cout << "Phase 4" << std::endl;
     m_phase = 4;
     m_palpation_number++;
@@ -325,9 +327,18 @@ void EndEffectorControl::tissuePalpation(const rclcpp::Time & time)
 
 void EndEffectorControl::startingHigh()
 {
-  // m_target_pose.pose.position.x = m_starting_position.x;
-  // m_target_pose.pose.position.y = m_starting_position.y;
-  m_target_pose.pose.position.z = m_starting_position.z;
+  if (m_current_pose.pose.position.z < m_starting_position.z)
+  {
+    m_grid_position.z += 0.01 / 500;
+  }
+  else 
+  {
+    m_grid_position.z = m_starting_position.z;
+  }
+
+  m_target_pose.pose.position.x = m_grid_position.x;
+  m_target_pose.pose.position.y = m_grid_position.y;
+  m_target_pose.pose.position.z = m_grid_position.z;
 
   m_target_pose.pose.orientation.x = 1;
   m_target_pose.pose.orientation.y = 0;
