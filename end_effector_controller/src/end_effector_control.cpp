@@ -107,31 +107,6 @@ EndEffectorControl::on_activate(const rclcpp_lifecycle::State & previous_state)
 
   initial_time = get_node()->now();
 
-  // Set the initial state of the estimator
-  State x;
-  x.x1() = 0.0;
-  x.x2() = -cartVel(2);
-  x.x3() = 1000.0;
-  x.x4() = 1000.0;
-
-  // Init filters with true system state
-  ekf.init(x);
-
-  // Save covariance for later
-  cov = ekf.getCovariance();
-  cov.setZero();
-
-  // Set initial values for the covariance
-  cov(0, 0) = 1.0;
-  cov(1, 1) = 1.0;
-  cov(2, 2) = 1000.0;
-  cov(3, 3) = 1000.0;
-
-  // Set covariance
-  ekf.setCovariance(cov);
-
-  // Set data for the kalman filter estimation
-  sys.setModelData(0.05, 0.002, 1.35);
 
   m_current_pose = getEndEffectorPose();
   prev_pos = m_current_pose.pose.position.z;
@@ -232,7 +207,7 @@ void EndEffectorControl::gridPosition()
 void EndEffectorControl::surfaceApproach()
 {
   // If the detected force in the z direction is greater than 10 N the phase is finished
-  if (m_ft_sensor_wrench(2) < -15.0)
+  if (m_ft_sensor_wrench(2) < -7.0)
   {
     std::cout << "Phase 3" << std::endl;
     m_phase = 3;
@@ -265,7 +240,22 @@ void EndEffectorControl::tissuePalpation(const rclcpp::Time & time)
   m_target_pose.pose.position.y = m_grid_position.y;
   m_target_pose.pose.position.z =
     m_grid_position.z -
-    0.004 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 2);//- 0.001 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 4);
+    0.004  // if (msgs_queue.size() < 15)
+  // {
+  //   msg.data = {(time.nanoseconds() * 1e-9), m_current_pose.pose.position.z,
+  //             m_target_pose.pose.position.z, cartVel(2), 0};
+  //   msgs_queue.push(msg);
+  // }
+  // else
+  // {
+  //   msgs_queue.front().data[5] = m_ft_sensor_wrench(2);
+  //   m_data_publisher->publish(msgs_queue.front());
+
+  //   msgs_queue.pop();
+  //   msg.data = {(time.nanoseconds() * 1e-9), m_current_pose.pose.position.z,
+  //             m_target_pose.pose.position.z, cartVel(2), 0};
+  //   msgs_queue.push(msg);
+  // } * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 2);//- 0.001 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 4);
   // prova di carico
   // std::cout << "x: " << m_target_pose.pose.position.x << std::endl;
   // std::cout << "time: " << time.nanoseconds() * 1e-9 - initial_time.nanoseconds()*1e-9<< std::endl;
@@ -276,39 +266,6 @@ void EndEffectorControl::tissuePalpation(const rclcpp::Time & time)
   m_target_pose.header.frame_id = m_robot_base_link;
 
   m_pose_publisher->publish(m_target_pose);
-
-  // Publish state
-  // std_msgs::msg::Float64MultiArray msg;
-  // if (msgs_queue.size() < 28)
-  // {
-  //   msg.data = {(time.nanoseconds() * 1e-9),
-  //               m_surface,
-  //               m_current_pose.pose.position.z,
-  //               m_target_pose.pose.position.z,
-  //               cartVel(2),
-  //               0,
-  //               (double)m_palpation_number,
-  //               m_current_pose.pose.position.x,
-  //               m_current_pose.pose.position.y};
-  //   msgs_queue.push(msg);
-  // }
-  // else
-  // {
-  //   msgs_queue.front().data[5] = -m_ft_sensor_wrench(2);
-  //   m_data_publisher->publish(msgs_queue.front());
-
-  //   msgs_queue.pop();
-  //   msg.data = {(time.nanoseconds() * 1e-9),
-  //               m_surface,
-  //               m_current_pose.pose.position.z,
-  //               m_target_pose.pose.position.z,
-  //               cartVel(2),
-  //               0,
-  //               (double)m_palpation_number,
-  //               m_current_pose.pose.position.x,
-  //               m_current_pose.pose.position.y};
-  //   msgs_queue.push(msg);
-  // }
 
   // If the time is greater than 5 seconds the phase is finished
   if (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9 > 20)
@@ -380,6 +337,28 @@ void EndEffectorControl::publishDataEE(const rclcpp::Time & time)
   msg.data = {(time.nanoseconds() * 1e-9), m_current_pose.pose.position.z,
               m_target_pose.pose.position.z, cartVel(2), m_ft_sensor_wrench(2)};
   m_data_publisher->publish(msg);
+
+    // Publish state
+  std_msgs::msg::Float64MultiArray msg;
+  msg.data = {(time.nanoseconds() * 1e-9), m_current_pose.pose.position.z,
+              m_target_pose.pose.position.z, cartVel(2), m_ft_sensor_wrench(2)};
+  // std_msgs::msg::Float64MultiArray msg;
+  // if (msgs_queue.size() < 15)
+  // {
+  //   msg.data = {(time.nanoseconds() * 1e-9), m_current_pose.pose.position.z,
+  //             m_target_pose.pose.position.z, cartVel(2), 0};
+  //   msgs_queue.push(msg);
+  // }
+  // else
+  // {
+  //   msgs_queue.front().data[5] = m_ft_sensor_wrench(2);
+  //   m_data_publisher->publish(msgs_queue.front());
+
+  //   msgs_queue.pop();
+  //   msg.data = {(time.nanoseconds() * 1e-9), m_current_pose.pose.position.z,
+  //             m_target_pose.pose.position.z, cartVel(2), 0};
+  //   msgs_queue.push(msg);
+  // }
 }
 
 controller_interface::InterfaceConfiguration EndEffectorControl::state_interface_configuration()
