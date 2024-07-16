@@ -207,7 +207,7 @@ void EndEffectorControl::gridPosition()
 void EndEffectorControl::surfaceApproach()
 {
   // If the detected force in the z direction is greater than 10 N the phase is finished
-  if (m_ft_sensor_wrench(2) < -7.0)
+  if (m_ft_sensor_wrench(2) < -4.0)
   {
     std::cout << "Phase 3" << std::endl;
     m_phase = 3;
@@ -240,7 +240,9 @@ void EndEffectorControl::tissuePalpation(const rclcpp::Time & time)
   m_target_pose.pose.position.y = m_grid_position.y;
   m_target_pose.pose.position.z =
     m_grid_position.z -
-    0.004  // if (msgs_queue.size() < 15)
+    0.003 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 2);//- 0.001 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 4);
+    
+  // if (msgs_queue.size() < 15)
   // {
   //   msg.data = {(time.nanoseconds() * 1e-9), m_current_pose.pose.position.z,
   //             m_target_pose.pose.position.z, cartVel(2), 0};
@@ -338,10 +340,10 @@ void EndEffectorControl::publishDataEE(const rclcpp::Time & time)
               m_target_pose.pose.position.z, cartVel(2), m_ft_sensor_wrench(2)};
   m_data_publisher->publish(msg);
 
-    // Publish state
-  std_msgs::msg::Float64MultiArray msg;
-  msg.data = {(time.nanoseconds() * 1e-9), m_current_pose.pose.position.z,
-              m_target_pose.pose.position.z, cartVel(2), m_ft_sensor_wrench(2)};
+  // Publish state
+  // std_msgs::msg::Float64MultiArray msg;
+  // msg.data = {(time.nanoseconds() * 1e-9), m_current_pose.pose.position.z,
+  //             m_target_pose.pose.position.z, cartVel(2), m_ft_sensor_wrench(2)};
   // std_msgs::msg::Float64MultiArray msg;
   // if (msgs_queue.size() < 15)
   // {
