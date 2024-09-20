@@ -338,10 +338,10 @@ void EndEffectorControl::publishDataEE(const rclcpp::Time & time)
   std_msgs::msg::Float64MultiArray msg;
   msg.data = {(time.nanoseconds() * 1e-9), m_current_pose.pose.position.z,
               m_target_pose.pose.position.z, cartVel(2), m_ft_sensor_wrench(2)};
-  m_data_publisher->publish(msg);
+  // m_data_publisher->publish(msg);
 
-  // Publish state
-  // std_msgs::msg::Float64MultiArray msg;
+  // // Publish state
+  // // std_msgs::msg::Float64MultiArray msg;
   // msg.data = {(time.nanoseconds() * 1e-9), m_current_pose.pose.position.z,
   //             m_target_pose.pose.position.z, cartVel(2), m_ft_sensor_wrench(2)};
   // std_msgs::msg::Float64MultiArray msg;

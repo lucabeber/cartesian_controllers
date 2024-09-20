@@ -73,7 +73,8 @@ CartesianControllerBase::command_interface_configuration() const
   return conf;
 }
 
-controller_interface::InterfaceConfiguration CartesianControllerBase::state_interface_configuration() const
+controller_interface::InterfaceConfiguration
+CartesianControllerBase::state_interface_configuration() const
 {
   controller_interface::InterfaceConfiguration conf;
   conf.type = controller_interface::interface_configuration_type::INDIVIDUAL;
