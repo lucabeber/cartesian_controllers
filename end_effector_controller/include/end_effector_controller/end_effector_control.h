@@ -198,6 +198,11 @@ private:
   uint m_palpation_number;
   double m_surface;
   double m_prev_force;
+  double m_sin_bias;
+  bool m_contact;
+  double m_force_bias;
+  uint m_force_sample;
+  bool m_force_sample_flag;
 
 public:
   // Simulated (true) system state
