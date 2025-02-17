@@ -269,7 +269,7 @@ void EndEffectorControl::surfaceApproach()
 
 void EndEffectorControl::tissuePalpation(const rclcpp::Time & time)
 {
-  m_target_pose.pose.position.x = m_grid_position.x;
+  // m_target_pose.pose.position.x = m_grid_position.x;
   // move in y direction with a velocity of 0.005 m/s
   // if ((time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) > 13)
   // {
@@ -289,7 +289,7 @@ void EndEffectorControl::tissuePalpation(const rclcpp::Time & time)
   m_pose_publisher->publish(m_target_pose);
 
   // If the time is greater than 5 seconds the phase is finished
-  if (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9 > 20)//(10 + 25))
+  if (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9 > 30)//(10 + 25))
   {
     // m_grid_position.z = m_grid_position.z -
     // 0.003 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 5);
@@ -513,9 +513,9 @@ EndEffectorControl::on_configure(const rclcpp_lifecycle::State & previous_state)
   m_state_interface_types.push_back("velocity");
 
   // Subscriber
-  m_target_wrench_subscriber = get_node()->create_subscription<geometry_msgs::msg::WrenchStamped>(
-    get_node()->get_name() + std::string("/target_wrench"), 10,
-    std::bind(&EndEffectorControl::targetWrenchCallback, this, std::placeholders::_1));
+  m_target_pos_subscriber = get_node()->create_subscription<geometry_msgs::msg::Point>(
+    get_node()->get_name() + std::string("/position"), 10,
+    std::bind(&EndEffectorControl::targetPosCallback, this, std::placeholders::_1));
 
   m_ft_sensor_wrench_subscriber =
     get_node()->create_subscription<geometry_msgs::msg::WrenchStamped>(
@@ -605,18 +605,11 @@ void EndEffectorControl::ftSensorWrenchCallback(
   }
 }
 
-void EndEffectorControl::targetWrenchCallback(
-  const geometry_msgs::msg::WrenchStamped::SharedPtr wrench)
+void EndEffectorControl::targetPosCallback(
+  const geometry_msgs::msg::Point::SharedPtr pos)
 {
-  KDL::Wrench tmp;
-  tmp[0] = wrench->wrench.force.x;
-  tmp[1] = wrench->wrench.force.y;
-  tmp[2] = wrench->wrench.force.z;
-
-  m_target_wrench(0) = -tmp[0];
-  m_target_wrench(1) = -tmp[1];
-  m_target_wrench(2) = -tmp[2];
-
+  m_target_pose.pose.position.x = pos->x;
+  m_target_pose.pose.position.y = pos->y;
 
   
 }
