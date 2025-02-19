@@ -126,7 +126,7 @@ EndEffectorControl::on_activate(const rclcpp_lifecycle::State & previous_state)
 
   m_contact = false;
 
-  m_surface = -0.123387;
+  m_surface = -0.15;
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
@@ -289,7 +289,7 @@ void EndEffectorControl::tissuePalpation(const rclcpp::Time & time)
   m_pose_publisher->publish(m_target_pose);
 
   // If the time is greater than 5 seconds the phase is finished
-  if (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9 > 30)//(10 + 25))
+  if (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9 > 1000)//(10 + 25))
   {
     // m_grid_position.z = m_grid_position.z -
     // 0.003 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 5);
@@ -401,7 +401,7 @@ void EndEffectorControl::publishDataEE(const rclcpp::Time & time)
   //   m_data_publisher->publish(msg);
   // }
   msg.data = {(time.nanoseconds() * 1e-9), m_current_pose.pose.position.z,
-                m_target_pose.pose.position.z, cartVel(2), m_ft_sensor_wrench(2), (double)m_palpation_number, (double)m_phase, m_current_pose.pose.position.x, m_current_pose.pose.position.y};
+                m_target_pose.pose.position.z, cartVel(2), m_ft_sensor_wrench(2), (double)m_palpation_number, (double)m_phase, m_current_pose.pose.position.x - m_boundary_x, m_current_pose.pose.position.y - m_boundary_y};
   m_data_publisher->publish(msg);
 
 }
@@ -514,7 +514,7 @@ EndEffectorControl::on_configure(const rclcpp_lifecycle::State & previous_state)
 
   // Subscriber
   m_target_pos_subscriber = get_node()->create_subscription<geometry_msgs::msg::Point>(
-    get_node()->get_name() + std::string("/position"), 10,
+    std::string("/position"), 10,
     std::bind(&EndEffectorControl::targetPosCallback, this, std::placeholders::_1));
 
   m_ft_sensor_wrench_subscriber =
@@ -535,6 +535,10 @@ EndEffectorControl::on_configure(const rclcpp_lifecycle::State & previous_state)
   m_sinusoidal_force.wrench.torque.x = 0.0;
   m_sinusoidal_force.wrench.torque.y = 0.0;
   m_sinusoidal_force.wrench.torque.z = 0.0;
+
+  // Set boundary for the palpation
+  m_boundary_x = -0.024;
+  m_boundary_y = 0.388;
 
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
@@ -608,10 +612,17 @@ void EndEffectorControl::ftSensorWrenchCallback(
 void EndEffectorControl::targetPosCallback(
   const geometry_msgs::msg::Point::SharedPtr pos)
 {
-  m_target_pose.pose.position.x = pos->x;
-  m_target_pose.pose.position.y = pos->y;
-
-  
+  // // If the position exits from the boundary of 50x50 mm kill the node
+  // if (pos->x + m_boundary_x > 0.05 || pos->x + m_boundary_x < 0.00 - 1e3||
+  //     pos->y + m_boundary_y > 0.05 || pos->y + m_boundary_y < 0.00 - 1e3)
+  // {
+  //   RCLCPP_ERROR(get_node()->get_logger(), "Position out of boundary");
+  //   // get_node()->get_node_base_interface()->get_context()->shutdown();
+  // }
+  // Print the position of the palpation
+  // RCLCPP_INFO_STREAM(get_node()->get_logger(), "Position x: " << pos->x << " y: " << pos->y);
+  m_target_pose.pose.position.x = pos->x/1000.0 + m_boundary_x;
+  m_target_pose.pose.position.y = pos->y/1000.0 + m_boundary_y;  
 }
 
 }  // namespace end_effector_controller

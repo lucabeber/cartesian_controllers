@@ -203,6 +203,8 @@ private:
   double m_force_bias;
   uint m_force_sample;
   bool m_force_sample_flag;
+  double m_boundary_x;
+  double m_boundary_y;
 
 public:
   // Simulated (true) system state
