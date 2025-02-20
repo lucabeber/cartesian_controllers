@@ -99,7 +99,7 @@ EndEffectorControl::on_activate(const rclcpp_lifecycle::State & previous_state)
   m_grid_position = m_starting_position;
   // m_grid_position.x = -0.055691;
   // m_grid_position.y = 0.454190; // 0.514197;//
-  m_sin_bias = 0.0035; // 0.0035;
+  m_sin_bias = 0.0045; // 0.0035;
   m_surface = m_current_pose.pose.position.z;
 
   m_force_bias = 0.0; 
@@ -537,8 +537,8 @@ EndEffectorControl::on_configure(const rclcpp_lifecycle::State & previous_state)
   m_sinusoidal_force.wrench.torque.z = 0.0;
 
   // Set boundary for the palpation
-  m_boundary_x = -0.024;
-  m_boundary_y = 0.388;
+  m_boundary_x = -0.0218;
+  m_boundary_y = 0.3951;
 
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
