@@ -537,8 +537,8 @@ EndEffectorControl::on_configure(const rclcpp_lifecycle::State & previous_state)
   m_sinusoidal_force.wrench.torque.z = 0.0;
 
   // Set boundary for the palpation
-  m_boundary_x = -0.0218;
-  m_boundary_y = 0.3951;
+  m_boundary_x = 0.004;
+  m_boundary_y = 0.413;
 
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
