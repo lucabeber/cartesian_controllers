@@ -95,11 +95,13 @@ EndEffectorControl::on_activate(const rclcpp_lifecycle::State & previous_state)
   m_current_pose = getEndEffectorPose();
   prev_pos = m_current_pose.pose.position.z;
   m_starting_position = m_current_pose.pose.position;
+  // Print starting pos 
+  std::cout << "Starting position: " << m_starting_position.x << ", " << m_starting_position.y << ", " << m_starting_position.z << std::endl;
   // m_starting_position.z -= 0.005;
   m_grid_position = m_starting_position;
   // m_grid_position.x = -0.055691;
   // m_grid_position.y = 0.454190; // 0.514197;//
-  m_sin_bias = 0.0035; // 0.0035;
+  m_sin_bias = 0.0045; // 0.0035;
   m_surface = m_current_pose.pose.position.z;
 
   m_force_bias = 0.0; 
@@ -126,7 +128,7 @@ EndEffectorControl::on_activate(const rclcpp_lifecycle::State & previous_state)
 
   m_contact = false;
 
-  m_surface = -0.123387;
+  m_surface = -0.15;
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
@@ -169,9 +171,10 @@ controller_interface::return_type EndEffectorControl::update(const rclcpp::Time 
   // 2. Move the end effector in order to touch the surface of the tissue
   // 3. Move the end effector in order to palpate the tCL_issue
   // 4. Move the end effector in order to go back to the initial high
-  if ( m_palpation_number >= 1)
+  if ( m_grid_position.x > m_starting_position.x + 0.0451)
   {
     return controller_interface::return_type::OK;
+    RCLCPP_INFO_STREAM(get_node()->get_logger(), "End of palpation");
   }
   
   switch (m_phase)
@@ -201,8 +204,24 @@ controller_interface::return_type EndEffectorControl::update(const rclcpp::Time 
 void EndEffectorControl::gridPosition()
 {
   // The end effector will move to the position of the palpation
-  m_target_pose.pose.position.x = m_grid_position.x;
-  m_target_pose.pose.position.y = m_grid_position.y;
+  if ( abs(m_target_pose.pose.position.x - m_grid_position.x) < 0.001)
+  {
+    m_target_pose.pose.position.x = m_grid_position.x;
+  }
+  else
+  {
+    m_target_pose.pose.position.x += std::copysign(0.005/500, m_grid_position.x - m_current_pose.pose.position.x);
+  }
+
+  if ( abs(m_target_pose.pose.position.y - m_grid_position.y) < 0.001)
+  {
+    m_target_pose.pose.position.y = m_grid_position.y;
+  }
+  else
+  {
+    m_target_pose.pose.position.y += std::copysign(0.005/500, m_grid_position.y - m_current_pose.pose.position.y);
+  }
+
   m_target_pose.pose.position.z = m_starting_position.z;
 
   m_target_pose.header.stamp = get_node()->now();
@@ -216,6 +235,7 @@ void EndEffectorControl::gridPosition()
   {
     m_phase = 2;
     m_prev_force = 0.0;
+    std::cout << "Palpation number: " << m_palpation_number << std::endl;
     std::cout << "Phase 2" << std::endl;
     std::cout << "Bias " << m_force_bias << std::endl;
     // m_surface = m_current_pose.pose.position.z;
@@ -289,7 +309,7 @@ void EndEffectorControl::tissuePalpation(const rclcpp::Time & time)
   m_pose_publisher->publish(m_target_pose);
 
   // If the time is greater than 5 seconds the phase is finished
-  if (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9 > 20)//(10 + 25))
+  if (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9 > 10)//(10 + 25))
   {
     // m_grid_position.z = m_grid_position.z -
     // 0.003 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 5);
@@ -335,14 +355,15 @@ void EndEffectorControl::startingHigh()
     newStartingPosition();
     m_grid_position.z = m_starting_position.z;
     // m_surface = m_starting_position.z;
-    m_palpation_number++;
+    
   }
 }
 
 void EndEffectorControl::newStartingPosition()
-{
-  // m_grid_position.x = m_starting_position.x + 0.01 * (int)(m_palpation_number / 11);
-  // m_grid_position.y = m_starting_position.y + 0.0025 * (m_palpation_number % 11);
+{ 
+  m_palpation_number++;
+  m_grid_position.x = m_starting_position.x + 0.0025 * (int)(m_palpation_number / 19);
+  m_grid_position.y = m_starting_position.y + 0.0025 * (m_palpation_number % 19);
   // m_grid_position.x = m_starting_position.x + 0.002 * (m_palpation_number % 15);
   // Move the end effector in a grid of 0.05x0.05 m starting from the bottom left corner and with a step of 0.002 m
   // m_grid_position.x = m_starting_position.x + 0.002 * (m_palpation_number % 26);
@@ -351,6 +372,18 @@ void EndEffectorControl::newStartingPosition()
   //Plot the grid
   std::cout << "x: " << m_grid_position.x << std::endl;
   std::cout << "y: " << m_grid_position.y << std::endl;
+
+  // Launch from command line the following command
+  // ros2 service call /bus0/ft_sensor0/reset_wrench rokubimini_msgs/srv/ResetWrench "desired_wrench:
+  // force:
+  //   x: 0.0
+  //   y: 0.0
+  //   z: 0.0
+  // torque:
+  //   x: 0.0
+  //   y: 0.0
+  //   z: 0.0"
+
 }
 
 controller_interface::InterfaceConfiguration EndEffectorControl::command_interface_configuration()
@@ -401,7 +434,7 @@ void EndEffectorControl::publishDataEE(const rclcpp::Time & time)
   //   m_data_publisher->publish(msg);
   // }
   msg.data = {(time.nanoseconds() * 1e-9), m_current_pose.pose.position.z,
-                m_target_pose.pose.position.z, cartVel(2), m_ft_sensor_wrench(2), (double)m_palpation_number, (double)m_phase, m_current_pose.pose.position.x, m_current_pose.pose.position.y};
+                m_target_pose.pose.position.z, cartVel(2), m_ft_sensor_wrench(2) - m_force_bias, (double)m_palpation_number, (double)m_phase, m_current_pose.pose.position.x, m_current_pose.pose.position.y};
   m_data_publisher->publish(msg);
 
 }
