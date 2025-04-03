@@ -203,6 +203,7 @@ private:
   double m_force_bias;
   uint m_force_sample;
   bool m_force_sample_flag;
+  double freq;
 
 public:
   // Simulated (true) system state
