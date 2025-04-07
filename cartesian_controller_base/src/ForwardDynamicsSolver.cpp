@@ -117,11 +117,7 @@ trajectory_msgs::msg::JointTrajectoryPoint ForwardDynamicsSolver::getJointContro
   return control_cmd;
 }
 
-#if defined CARTESIAN_CONTROLLERS_HUMBLE || defined CARTESIAN_CONTROLLERS_IRON
 bool ForwardDynamicsSolver::init(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> nh,
-#else
-bool ForwardDynamicsSolver::init(std::shared_ptr<rclcpp::Node> nh,
-#endif
                                  const KDL::Chain & chain, const KDL::JntArray & upper_pos_limits,
                                  const KDL::JntArray & lower_pos_limits)
 {
@@ -140,7 +136,7 @@ bool ForwardDynamicsSolver::init(std::shared_ptr<rclcpp::Node> nh,
   m_jnt_space_inertia.resize(m_number_joints);
 
   // Set the initial value if provided at runtime, else use default value.
-  m_min = nh->declare_parameter<double>(m_params + "/link_mass", 0.1);
+  m_min = auto_declare(m_params + ".link_mass", 0.1);
 
   RCLCPP_INFO(nh->get_logger(), "Forward dynamics solver initialized");
   RCLCPP_INFO(nh->get_logger(), "Forward dynamics solver has control over %i joints",
