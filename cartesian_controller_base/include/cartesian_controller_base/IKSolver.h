@@ -147,13 +147,9 @@ public:
      *
      * @return True, if everything went well
      */
-#if defined CARTESIAN_CONTROLLERS_HUMBLE || defined CARTESIAN_CONTROLLERS_IRON
-  virtual bool init(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> nh,
-#else
-  virtual bool init(std::shared_ptr<rclcpp::Node> nh,
-#endif
-                    const KDL::Chain & chain, const KDL::JntArray & upper_pos_limits,
-                    const KDL::JntArray & lower_pos_limits);
+
+  virtual bool init(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> nh, const KDL::Chain & chain,
+                    const KDL::JntArray & upper_pos_limits, const KDL::JntArray & lower_pos_limits);
 
   /**
      * @brief Update the robot kinematics of the solver
@@ -173,6 +169,21 @@ protected:
      * that this is the default urdf initializer if limits are omitted.
      */
   void applyJointLimits();
+
+  template <typename ParameterT>
+  auto auto_declare(const std::string & name, const ParameterT & default_value)
+  {
+    if (!m_handle->has_parameter(name))
+    {
+      return m_handle->declare_parameter<ParameterT>(name, default_value);
+    }
+    else
+    {
+      return m_handle->get_parameter(name).get_value<ParameterT>();
+    }
+  }
+
+  std::shared_ptr<rclcpp_lifecycle::LifecycleNode> m_handle;
 
   //! The underlying physical system
   KDL::Chain m_chain;
