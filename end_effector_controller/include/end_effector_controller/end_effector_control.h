@@ -102,11 +102,8 @@ public:
   EndEffectorControl();
   ~EndEffectorControl();
 
-#if defined CARTESIAN_CONTROLLERS_GALACTIC || defined CARTESIAN_CONTROLLERS_HUMBLE
+
   virtual LifecycleNodeInterface::CallbackReturn on_init() override;
-#elif defined CARTESIAN_CONTROLLERS_FOXY
-  virtual controller_interface::return_type init(const std::string & controller_name) override;
-#endif
 
   rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn on_configure(
     const rclcpp_lifecycle::State & previous_state) override;
