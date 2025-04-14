@@ -99,7 +99,7 @@ EndEffectorControl::on_activate(const rclcpp_lifecycle::State & previous_state)
   m_grid_position = m_starting_position;
   // m_grid_position.x = -0.055691;
   // m_grid_position.y = 0.454190; // 0.514197;//
-  m_sin_bias = 0.0045; // 0.0035;
+  m_sin_bias = 0.003; // 0.0035;
   m_surface = m_current_pose.pose.position.z;
 
   m_force_bias = 0.0; 
@@ -112,7 +112,8 @@ EndEffectorControl::on_activate(const rclcpp_lifecycle::State & previous_state)
 
   m_target_wrench(0) = 0.0;
   m_target_wrench(1) = 0.0;
-  m_target_wrench(2) = 0.0;
+  m_target_wrench(2) = 0.75;
+
 
   initial_time = get_node()->now();
 
@@ -126,7 +127,7 @@ EndEffectorControl::on_activate(const rclcpp_lifecycle::State & previous_state)
 
   m_contact = false;
 
-  m_surface = -0.15;
+  m_surface = 0.016;
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
@@ -153,12 +154,7 @@ controller_interface::return_type EndEffectorControl::update(const rclcpp::Time 
   // Get the end effector pose
   m_current_pose = getEndEffectorPose();
 
-  m_target_pose.pose.orientation.x = 1;
-  m_target_pose.pose.orientation.y = 0;
-  m_target_pose.pose.orientation.z = 0;
-  m_target_pose.pose.orientation.w = 0;
-  // m_current_pose.pose.position.x = m_starting_position.x;
-  // m_current_pose.pose.position.y = m_starting_position.y;
+  
 
   // The controller will palpate the tissue in a square of 0.12x0.12 m starting from the bottom left corner,
   // every palpation is done with a distance of 0.03 m from the previous one. The palpation is done in the z direction
@@ -204,11 +200,17 @@ void EndEffectorControl::gridPosition()
   m_target_pose.pose.position.x = m_grid_position.x;
   m_target_pose.pose.position.y = m_grid_position.y;
   m_target_pose.pose.position.z = m_starting_position.z;
+  m_target_pose.pose.orientation.x = 1.0;
+  m_target_pose.pose.orientation.y = 0.0;
+  m_target_pose.pose.orientation.z = 0;
+  m_target_pose.pose.orientation.w = 0;
 
   m_target_pose.header.stamp = get_node()->now();
   m_target_pose.header.frame_id = m_robot_base_link;
 
   m_pose_publisher->publish(m_target_pose);
+
+ 
 
   // If the end effector is in the position of the palpation the phase is finished
   if (abs(m_current_pose.pose.position.x - m_grid_position.x) < 0.001 &&
@@ -227,6 +229,16 @@ void EndEffectorControl::gridPosition()
 
 void EndEffectorControl::surfaceApproach()
 {
+  // Publish a force of 3N in the z direction with reference frame probe
+  m_sinusoidal_force.header.stamp = get_node()->now();
+  m_sinusoidal_force.header.frame_id = m_end_effector_link;
+  m_sinusoidal_force.wrench.force.x = m_target_wrench(0);
+  m_sinusoidal_force.wrench.force.y = m_target_wrench(1);
+  m_sinusoidal_force.wrench.force.z = m_target_wrench(2);
+  m_sinusoidal_force.wrench.torque.x = 0.0;
+  m_sinusoidal_force.wrench.torque.y = 0.0;
+  m_sinusoidal_force.wrench.torque.z = 0.0;
+  m_force_publisher->publish(m_sinusoidal_force);
   // If the detected force in the z direction is greater than 10 N the phase is finished
   if ( m_current_pose.pose.position.z <= m_surface - m_sin_bias)// - 0.5 * m_palpation_number)
   // if ( m_current_pose.pose.position.z  < -0.1304 )
@@ -281,11 +293,38 @@ void EndEffectorControl::tissuePalpation(const rclcpp::Time & time)
   // }
   
   // m_target_pose.pose.position.y = m_grid_position.y + 0.002 * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9);
-  m_target_pose.pose.position.z =
-    m_grid_position.z - 0.00175 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 2); //+ 0.001 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 4);//- 0.001 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 4);
+  // m_target_pose.pose.position.z = m_surface -
+    // m_sin_bias - 0.0015 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 2); //+ 0.001 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 4);//- 0.001 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 4);
+  m_sinusoidal_force.wrench.force.z = m_target_wrench(2) +  
+    0.3 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 2);
+  m_sinusoidal_force.header.stamp = get_node()->now();
+  m_sinusoidal_force.header.frame_id = m_end_effector_link;
+  m_sinusoidal_force.wrench.force.x = m_target_wrench(0);
+  m_sinusoidal_force.wrench.force.y = m_target_wrench(1);
+  m_sinusoidal_force.wrench.torque.x = 0.0;
+  m_sinusoidal_force.wrench.torque.y = 0.0;
+  m_sinusoidal_force.wrench.torque.z = 0.0;
+  m_force_publisher->publish(m_sinusoidal_force);
+  
   m_target_pose.header.stamp = get_node()->now();
   m_target_pose.header.frame_id = m_robot_base_link;
-
+  
+  // If z posision is lower than 0.01 stop the controller with error
+  if (m_current_pose.pose.position.z < 0.0085 )
+  {
+    RCLCPP_ERROR(get_node()->get_logger(), "z Position out of boundary");
+    RCLCPP_ERROR(get_node()->get_logger(), "z: %f", m_current_pose.pose.position.z);
+    rclcpp::shutdown();
+  }
+  // if x position is grater or smaller of 5 cm from the starting position kill the node
+  if (std::abs(m_current_pose.pose.position.x - m_starting_position.x) > 0.7 ||
+      std::abs(m_current_pose.pose.position.y - m_starting_position.y) > 0.7 || std::abs(m_target_pose.pose.position.x- m_starting_position.x) > 0.7 ||
+      std::abs(m_target_pose.pose.position.y - m_starting_position.x) > 0.7)
+        {
+    RCLCPP_ERROR(get_node()->get_logger(), "x/y Position out of boundary");
+    RCLCPP_ERROR(get_node()->get_logger(), "x: %f, y: %f", m_current_pose.pose.position.x, m_current_pose.pose.position.y);
+    rclcpp::shutdown();
+  }
   m_pose_publisher->publish(m_target_pose);
 
   // If the time is greater than 5 seconds the phase is finished
@@ -319,8 +358,8 @@ void EndEffectorControl::startingHigh()
   m_target_pose.pose.position.y = m_grid_position.y;
   m_target_pose.pose.position.z = m_grid_position.z;
 
-  m_target_pose.pose.orientation.x = 1;
-  m_target_pose.pose.orientation.y = 0;
+  m_target_pose.pose.orientation.x = 1.0;
+  m_target_pose.pose.orientation.y = 0.0;
   m_target_pose.pose.orientation.z = 0;
   m_target_pose.pose.orientation.w = 0;
   m_target_pose.header.stamp = get_node()->now();
@@ -401,7 +440,9 @@ void EndEffectorControl::publishDataEE(const rclcpp::Time & time)
   //   m_data_publisher->publish(msg);
   // }
   msg.data = {(time.nanoseconds() * 1e-9), m_current_pose.pose.position.z,
-                m_target_pose.pose.position.z, cartVel(2), m_ft_sensor_wrench(2), (double)m_palpation_number, (double)m_phase, m_current_pose.pose.position.x - m_boundary_x, m_current_pose.pose.position.y - m_boundary_y};
+    m_current_pose.pose.position.z, cartVel(2), m_ft_sensor_wrench(2), (double)m_palpation_number, (double)m_phase, m_current_pose.pose.position.x, m_current_pose.pose.position.y, m_current_pose.pose.position.z,
+    m_current_pose.pose.orientation.x, m_current_pose.pose.orientation.y, m_current_pose.pose.orientation.z, m_current_pose.pose.orientation.w
+  };
   m_data_publisher->publish(msg);
 
 }
@@ -492,6 +533,9 @@ EndEffectorControl::on_configure(const rclcpp_lifecycle::State & previous_state)
   m_pose_publisher = get_node()->create_publisher<geometry_msgs::msg::PoseStamped>(
     get_node()->get_name() + std::string("/target_frame"), 10);
 
+  m_force_publisher = get_node()->create_publisher<geometry_msgs::msg::WrenchStamped>(
+    get_node()->get_name() + std::string("/target_wrench"), 10);
+
   m_data_publisher = get_node()->create_publisher<std_msgs::msg::Float64MultiArray>(
     std::string("/data_control"), 10);
 
@@ -513,7 +557,7 @@ EndEffectorControl::on_configure(const rclcpp_lifecycle::State & previous_state)
   m_state_interface_types.push_back("velocity");
 
   // Subscriber
-  m_target_pos_subscriber = get_node()->create_subscription<geometry_msgs::msg::Point>(
+  m_target_pos_subscriber = get_node()->create_subscription<geometry_msgs::msg::PoseStamped>(
     std::string("/position"), 10,
     std::bind(&EndEffectorControl::targetPosCallback, this, std::placeholders::_1));
 
@@ -536,9 +580,6 @@ EndEffectorControl::on_configure(const rclcpp_lifecycle::State & previous_state)
   m_sinusoidal_force.wrench.torque.y = 0.0;
   m_sinusoidal_force.wrench.torque.z = 0.0;
 
-  // Set boundary for the palpation
-  m_boundary_x = 0.004;
-  m_boundary_y = 0.413;
 
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
@@ -596,7 +637,7 @@ void EndEffectorControl::ftSensorWrenchCallback(
   m_ft_sensor_wrench(1) = tmp[1];
   m_ft_sensor_wrench(2) = tmp[2];
 
-    if (m_phase == 2 && m_force_sample_flag == false)
+  if (m_phase == 2 && m_force_sample_flag == false)
   {
     m_force_bias += m_ft_sensor_wrench(2);
     m_force_sample++;
@@ -610,8 +651,9 @@ void EndEffectorControl::ftSensorWrenchCallback(
 }
 
 void EndEffectorControl::targetPosCallback(
-  const geometry_msgs::msg::Point::SharedPtr pos)
+  const geometry_msgs::msg::PoseStamped::SharedPtr pose)
 {
+  
   // // If the position exits from the boundary of 50x50 mm kill the node
   // if (pos->x + m_boundary_x > 0.05 || pos->x + m_boundary_x < 0.00 - 1e3||
   //     pos->y + m_boundary_y > 0.05 || pos->y + m_boundary_y < 0.00 - 1e3)
@@ -621,8 +663,16 @@ void EndEffectorControl::targetPosCallback(
   // }
   // Print the position of the palpation
   // RCLCPP_INFO_STREAM(get_node()->get_logger(), "Position x: " << pos->x << " y: " << pos->y);
-  m_target_pose.pose.position.x = pos->x/1000.0 + m_boundary_x;
-  m_target_pose.pose.position.y = pos->y/1000.0 + m_boundary_y;  
+  m_target_pose.pose.position.x = pose->pose.position.x;
+  m_target_pose.pose.position.y = pose->pose.position.y;
+  m_surface = pose->pose.position.z + 0.0162;
+  m_target_pose.pose.orientation.x = pose->pose.orientation.x;
+  m_target_pose.pose.orientation.y = pose->pose.orientation.y;
+  m_target_pose.pose.orientation.z = pose->pose.orientation.z;
+  m_target_pose.pose.orientation.w = pose->pose.orientation.w; 
+  // Print the given position
+  RCLCPP_INFO_STREAM(get_node()->get_logger(), "Target position x: " << m_target_pose.pose.position.x << " y: " << m_target_pose.pose.position.y << " z: " << m_target_pose.pose.position.z);
+  RCLCPP_INFO_STREAM(get_node()->get_logger(), "Target orientation x: " << m_target_pose.pose.orientation.x << " y: " << m_target_pose.pose.orientation.y << " z: " << m_target_pose.pose.orientation.z << " w: " << m_target_pose.pose.orientation.w);
 }
 
 }  // namespace end_effector_controller

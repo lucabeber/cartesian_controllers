@@ -102,11 +102,8 @@ public:
   EndEffectorControl();
   ~EndEffectorControl();
 
-#if defined CARTESIAN_CONTROLLERS_GALACTIC || defined CARTESIAN_CONTROLLERS_HUMBLE
+
   virtual LifecycleNodeInterface::CallbackReturn on_init() override;
-#elif defined CARTESIAN_CONTROLLERS_FOXY
-  virtual controller_interface::return_type init(const std::string & controller_name) override;
-#endif
 
   rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn on_configure(
     const rclcpp_lifecycle::State & previous_state) override;
@@ -159,7 +156,7 @@ private:
   void publishDataEE(const rclcpp::Time & time);
 
   void ftSensorWrenchCallback(const geometry_msgs::msg::WrenchStamped::SharedPtr wrench);
-  void targetPosCallback(const geometry_msgs::msg::Point::SharedPtr wrench);
+  void targetPosCallback(const geometry_msgs::msg::PoseStamped::SharedPtr pose);
 
   // Handles to the joints
   std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface> >
@@ -183,10 +180,11 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr m_pose_publisher;
   rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr m_data_publisher;
   rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr m_estimator_publisher;
+  rclcpp::Publisher<geometry_msgs::msg::WrenchStamped>::SharedPtr m_force_publisher;
   // rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr  m_elasticity_publisher;
   // rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr  m_position_publisher;
   // rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr  m_force_publisher;
-  rclcpp::Subscription<geometry_msgs::msg::Point>::SharedPtr m_target_pos_subscriber;
+  rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr m_target_pos_subscriber;
   rclcpp::Subscription<geometry_msgs::msg::WrenchStamped>::SharedPtr m_ft_sensor_wrench_subscriber;
   Eigen::Vector3d m_target_wrench;
   Eigen::Vector3d m_ft_sensor_wrench;
