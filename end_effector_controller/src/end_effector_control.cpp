@@ -112,7 +112,7 @@ EndEffectorControl::on_activate(const rclcpp_lifecycle::State & previous_state)
 
   m_target_wrench(0) = 0.0;
   m_target_wrench(1) = 0.0;
-  m_target_wrench(2) = 0.75;
+  m_target_wrench(2) = 2.0;
 
 
   initial_time = get_node()->now();
@@ -240,7 +240,7 @@ void EndEffectorControl::surfaceApproach()
   m_sinusoidal_force.wrench.torque.z = 0.0;
   m_force_publisher->publish(m_sinusoidal_force);
   // If the detected force in the z direction is greater than 10 N the phase is finished
-  if ( m_current_pose.pose.position.z <= m_surface - m_sin_bias)// - 0.5 * m_palpation_number)
+  if ( m_current_pose.pose.position.z <= m_surface - m_sin_bias || m_ft_sensor_wrench(2) < -1.0)// - 0.5 * m_palpation_number)
   // if ( m_current_pose.pose.position.z  < -0.1304 )
   {
     std::cout << "Phase 3" << std::endl;
@@ -296,7 +296,7 @@ void EndEffectorControl::tissuePalpation(const rclcpp::Time & time)
   // m_target_pose.pose.position.z = m_surface -
     // m_sin_bias - 0.0015 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 2); //+ 0.001 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 4);//- 0.001 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 4);
   m_sinusoidal_force.wrench.force.z = m_target_wrench(2) +  
-    0.3 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 2);
+    0.5 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 2);
   m_sinusoidal_force.header.stamp = get_node()->now();
   m_sinusoidal_force.header.frame_id = m_end_effector_link;
   m_sinusoidal_force.wrench.force.x = m_target_wrench(0);
@@ -310,7 +310,7 @@ void EndEffectorControl::tissuePalpation(const rclcpp::Time & time)
   m_target_pose.header.frame_id = m_robot_base_link;
   
   // If z posision is lower than 0.01 stop the controller with error
-  if (m_current_pose.pose.position.z < 0.0085 )
+  if (m_current_pose.pose.position.z < 0.003 || m_current_pose.pose.position.z > 0.030)
   {
     RCLCPP_ERROR(get_node()->get_logger(), "z Position out of boundary");
     RCLCPP_ERROR(get_node()->get_logger(), "z: %f", m_current_pose.pose.position.z);
@@ -440,7 +440,9 @@ void EndEffectorControl::publishDataEE(const rclcpp::Time & time)
   //   m_data_publisher->publish(msg);
   // }
   msg.data = {(time.nanoseconds() * 1e-9), m_current_pose.pose.position.z,
-    m_current_pose.pose.position.z, cartVel(2), m_ft_sensor_wrench(2), (double)m_palpation_number, (double)m_phase, m_current_pose.pose.position.x, m_current_pose.pose.position.y, m_current_pose.pose.position.z,
+    m_current_pose.pose.position.z, cartVel(2), m_ft_sensor_wrench(2),
+    // std::sqrt( std::pow(m_ft_sensor_wrench(2), 2) + std::pow(m_ft_sensor_wrench(1), 2) + std::pow(m_ft_sensor_wrench(0), 2) ),
+    (double)m_palpation_number, (double)m_phase, m_current_pose.pose.position.x, m_current_pose.pose.position.y, m_current_pose.pose.position.z,
     m_current_pose.pose.orientation.x, m_current_pose.pose.orientation.y, m_current_pose.pose.orientation.z, m_current_pose.pose.orientation.w
   };
   m_data_publisher->publish(msg);
@@ -590,8 +592,8 @@ geometry_msgs::msg::PoseStamped EndEffectorControl::getEndEffectorPose()
   KDL::JntArray velocities(m_joint_state_pos_handles.size());
   for (size_t i = 0; i < m_joint_state_pos_handles.size(); ++i)
   {
-    positions(i) = m_joint_state_pos_handles[i].get().get_value();
-    velocities(i) = m_joint_state_vel_handles[i].get().get_value();
+    positions(i) = m_joint_state_pos_handles[i].get().get_optional().value();
+    velocities(i) = m_joint_state_vel_handles[i].get().get_optional().value();
   }
 
   KDL::JntArrayVel joint_data(positions, velocities);
@@ -663,9 +665,31 @@ void EndEffectorControl::targetPosCallback(
   // }
   // Print the position of the palpation
   // RCLCPP_INFO_STREAM(get_node()->get_logger(), "Position x: " << pos->x << " y: " << pos->y);
+  if (std::abs(m_target_pose.pose.position.x - pose->pose.position.x) > 0.003 ||
+      std::abs(m_target_pose.pose.position.y - pose->pose.position.y) > 0.003 ||
+      std::abs(m_target_pose.pose.position.z - pose->pose.position.z) > 0.005)
+  {
+    RCLCPP_ERROR(get_node()->get_logger(), "Commanded position change exceeds 1mm. Shutting down.");
+    RCLCPP_ERROR(get_node()->get_logger(), "Target position x: %f, y: %f, z: %f", pose->pose.position.x, pose->pose.position.y, pose->pose.position.z);
+    RCLCPP_ERROR(get_node()->get_logger(), "Current target position x: %f, y: %f, z: %f", m_target_pose.pose.position.x, m_target_pose.pose.position.y, m_target_pose.pose.position.z);
+    rclcpp::shutdown();
+    return;
+  }
+
+  if (std::abs(m_target_pose.pose.orientation.x - pose->pose.orientation.x) > 0.4 ||
+      std::abs(m_target_pose.pose.orientation.y - pose->pose.orientation.y) > 0.4 ||
+      std::abs(m_target_pose.pose.orientation.z - pose->pose.orientation.z) > 0.4 ||
+      std::abs(m_target_pose.pose.orientation.w - pose->pose.orientation.w) > 0.4)
+  {
+    RCLCPP_ERROR(get_node()->get_logger(), "Commanded orientation change exceeds 0.2. Shutting down.");
+    rclcpp::shutdown();
+    return;
+  }
+
   m_target_pose.pose.position.x = pose->pose.position.x;
   m_target_pose.pose.position.y = pose->pose.position.y;
-  m_surface = pose->pose.position.z + 0.0162;
+  m_surface = pose->pose.position.z;
+  m_target_pose.pose.position.z = pose->pose.position.z;
   m_target_pose.pose.orientation.x = pose->pose.orientation.x;
   m_target_pose.pose.orientation.y = pose->pose.orientation.y;
   m_target_pose.pose.orientation.z = pose->pose.orientation.z;
