@@ -99,7 +99,7 @@ EndEffectorControl::on_activate(const rclcpp_lifecycle::State & previous_state)
   m_grid_position = m_starting_position;
   // m_grid_position.x = -0.055691;
   // m_grid_position.y = 0.454190; // 0.514197;//
-  m_sin_bias = 0.0045; // 0.0035;
+  m_sin_bias = 0.0015; // 0.0035;
   m_surface = m_current_pose.pose.position.z;
 
   m_force_bias = 0.0; 
@@ -126,7 +126,7 @@ EndEffectorControl::on_activate(const rclcpp_lifecycle::State & previous_state)
 
   m_contact = false;
 
-  m_surface = -0.15;
+  m_surface = -0.1625;
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
@@ -282,7 +282,7 @@ void EndEffectorControl::tissuePalpation(const rclcpp::Time & time)
   
   // m_target_pose.pose.position.y = m_grid_position.y + 0.002 * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9);
   m_target_pose.pose.position.z =
-    m_grid_position.z - 0.00175 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 2); //+ 0.001 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 4);//- 0.001 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 4);
+    m_grid_position.z - 0.0005 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 2); //+ 0.001 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 4);//- 0.001 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 4);
   m_target_pose.header.stamp = get_node()->now();
   m_target_pose.header.frame_id = m_robot_base_link;
 
@@ -537,8 +537,8 @@ EndEffectorControl::on_configure(const rclcpp_lifecycle::State & previous_state)
   m_sinusoidal_force.wrench.torque.z = 0.0;
 
   // Set boundary for the palpation
-  m_boundary_x = 0.004;
-  m_boundary_y = 0.413;
+  m_boundary_x = -0.1198352153496789;
+  m_boundary_y = 0.4303303186260463;
 
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
