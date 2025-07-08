@@ -46,6 +46,7 @@
 #include <interactive_markers/interactive_marker_server.hpp>
 #include <kdl/chain.hpp>
 #include <kdl/chainfksolvervel_recursive.hpp>
+#include <kdl/treefksolverpos_recursive.hpp>
 #include <memory>
 #include <queue>
 
@@ -55,32 +56,9 @@
 #include "geometry_msgs/msg/wrench_stamped.hpp"
 #include "rclcpp/publisher.hpp"
 #include "std_msgs/msg/float64_multi_array.hpp"
-#include "visualization_msgs/msg/interactive_marker.hpp"
-#include "visualization_msgs/msg/interactive_marker_feedback.hpp"
 
 #define _USE_MATH_DEFINES
 #include <Eigen/Dense>
-
-#include "SystemModelF.hpp"
-#include "ForceMeasurementModel.hpp"
-
-#include <end_effector_controller/kalman/ExtendedKalmanFilter.hpp>
-#include <end_effector_controller/kalman/UnscentedKalmanFilter.hpp>
-#include <iostream>
-#include <random>
-#include <chrono>
-
-using namespace KalmanExamples2;
-
-typedef float T;
-
-// Some type shortcuts
-typedef Estimation::State<T> State;
-typedef Estimation::SystemModel<T> SystemModel;
-typedef Estimation::Control<T> Control;
-
-typedef Estimation::VelocityMeasurement<T> VelocityMeasurement;
-typedef Estimation::ForceMeasurementModel<T> ForceModel;
 
 namespace end_effector_controller
 {
@@ -101,7 +79,6 @@ class EndEffectorControl : public controller_interface::ControllerInterface
 public:
   EndEffectorControl();
   ~EndEffectorControl();
-
 
   virtual LifecycleNodeInterface::CallbackReturn on_init() override;
 
@@ -148,6 +125,8 @@ private:
      */
   geometry_msgs::msg::Quaternion setEndEffectorOrientation(geometry_msgs::msg::Quaternion pos);
 
+  Eigen::Vector3d displayInBaseLink(const Eigen::Vector3d & vector, const std::string & from);
+
   void gridPosition();
   void surfaceApproach();
   void tissuePalpation(const rclcpp::Time & time);
@@ -171,8 +150,10 @@ private:
   std::string m_robot_base_link;
   std::string m_end_effector_link;
   std::string m_target_frame_topic;
+  std::string m_ft_sensor_ref_link;
   KDL::Chain m_robot_chain;
   std::shared_ptr<KDL::ChainFkSolverVel_recursive> m_fk_solver;
+  std::shared_ptr<KDL::TreeFkSolverPos_recursive> m_forward_kinematics_solver;
 
   geometry_msgs::msg::PoseStamped m_current_pose;
   geometry_msgs::msg::PoseStamped m_target_pose;
@@ -188,8 +169,8 @@ private:
   rclcpp::Subscription<geometry_msgs::msg::WrenchStamped>::SharedPtr m_ft_sensor_wrench_subscriber;
   Eigen::Vector3d m_target_wrench;
   Eigen::Vector3d m_ft_sensor_wrench;
-  Eigen::Vector3d errorOrientation;
-  Eigen::Vector3d cartVel;
+  Eigen::Vector3d m_orientation_error;
+  Eigen::Vector3d m_cartesian_velocity;
   geometry_msgs::msg::Point m_starting_position;
   geometry_msgs::msg::Point m_grid_position;
   uint m_phase;
@@ -205,19 +186,6 @@ private:
   double m_boundary_y;
 
 public:
-  // Simulated (true) system state
-  State x;
-
-  // System
-  SystemModel sys;
-
-  // Measurement models
-  ForceModel fm;
-
-  Kalman::ExtendedKalmanFilter<State> ekf;
-
-  Kalman::Covariance<State> cov;
-
   // Previos position
   float prev_pos;
   rclcpp::Time initial_time;
