@@ -99,7 +99,7 @@ EndEffectorControl::on_activate(const rclcpp_lifecycle::State & previous_state)
   m_grid_position = m_starting_position;
   // m_grid_position.x = -0.055691;
   // m_grid_position.y = 0.454190; // 0.514197;//
-  m_sin_bias = 0.0015; // 0.0035;
+  m_sin_bias = 0.0045; // 0.0035;
   m_surface = m_current_pose.pose.position.z;
 
   m_force_bias = 0.0; 
@@ -126,7 +126,7 @@ EndEffectorControl::on_activate(const rclcpp_lifecycle::State & previous_state)
 
   m_contact = false;
 
-  m_surface = -0.1625;
+  m_surface = -0.15;
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
@@ -227,6 +227,10 @@ void EndEffectorControl::gridPosition()
 
 void EndEffectorControl::surfaceApproach()
 {
+  if ( m_palpation_number >= 1)
+  {
+    return; //controller_interface::return_type::OK;
+  }
   // If the detected force in the z direction is greater than 10 N the phase is finished
   if ( m_current_pose.pose.position.z <= m_surface - m_sin_bias)// - 0.5 * m_palpation_number)
   // if ( m_current_pose.pose.position.z  < -0.1304 )
@@ -282,14 +286,14 @@ void EndEffectorControl::tissuePalpation(const rclcpp::Time & time)
   
   // m_target_pose.pose.position.y = m_grid_position.y + 0.002 * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9);
   m_target_pose.pose.position.z =
-    m_grid_position.z - 0.0005 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 2); //+ 0.001 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 4);//- 0.001 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 4);
+    m_grid_position.z - 0.00175 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 2); //+ 0.001 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 4);//- 0.001 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 4);
   m_target_pose.header.stamp = get_node()->now();
   m_target_pose.header.frame_id = m_robot_base_link;
 
   m_pose_publisher->publish(m_target_pose);
 
   // If the time is greater than 5 seconds the phase is finished
-  if (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9 > 1000)//(10 + 25))
+  if (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9 > 210)//(10 + 25))
   {
     // m_grid_position.z = m_grid_position.z -
     // 0.003 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 5);
@@ -341,12 +345,16 @@ void EndEffectorControl::startingHigh()
 
 void EndEffectorControl::newStartingPosition()
 {
-  // m_grid_position.x = m_starting_position.x + 0.01 * (int)(m_palpation_number / 11);
-  // m_grid_position.y = m_starting_position.y + 0.0025 * (m_palpation_number % 11);
-  // m_grid_position.x = m_starting_position.x + 0.002 * (m_palpation_number % 15);
-  // Move the end effector in a grid of 0.05x0.05 m starting from the bottom left corner and with a step of 0.002 m
-  // m_grid_position.x = m_starting_position.x + 0.002 * (m_palpation_number % 26);
-  // m_grid_position.y += 0.005;
+  // Generate random position between 0.0 and 0.05 in x and between 0.0 and 0.05 in y
+  // Create a random device and a Mersenne Twister engine
+  std::random_device rd;
+  std::mt19937 gen(rd());
+
+  // Define the distribution range: from 0 to 0.05
+  std::uniform_real_distribution<> dis(0.0, 0.05);
+    
+  // m_grid_position.x = m_boundary_x + dis(gen);
+  // m_grid_position.y = m_boundary_y + dis(gen);
 
   //Plot the grid
   std::cout << "x: " << m_grid_position.x << std::endl;
@@ -537,8 +545,8 @@ EndEffectorControl::on_configure(const rclcpp_lifecycle::State & previous_state)
   m_sinusoidal_force.wrench.torque.z = 0.0;
 
   // Set boundary for the palpation
-  m_boundary_x = -0.1198352153496789;
-  m_boundary_y = 0.4303303186260463;
+  m_boundary_x = -0.0749988 - 0.015;
+  m_boundary_y = 0.416571 - 0.022;
 
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
@@ -612,13 +620,13 @@ void EndEffectorControl::ftSensorWrenchCallback(
 void EndEffectorControl::targetPosCallback(
   const geometry_msgs::msg::Point::SharedPtr pos)
 {
-  // // If the position exits from the boundary of 50x50 mm kill the node
-  // if (pos->x + m_boundary_x > 0.05 || pos->x + m_boundary_x < 0.00 - 1e3||
-  //     pos->y + m_boundary_y > 0.05 || pos->y + m_boundary_y < 0.00 - 1e3)
-  // {
-  //   RCLCPP_ERROR(get_node()->get_logger(), "Position out of boundary");
-  //   // get_node()->get_node_base_interface()->get_context()->shutdown();
-  // }
+  // If the position exits from the boundary of 50x50 mm kill the node
+  if (pos->x / 1000 > 0.05 || pos->x / 1000 < -0.005 ||
+      pos->y / 1000 > 0.05 || pos->y / 1000 < -0.005 )
+  {
+    RCLCPP_ERROR(get_node()->get_logger(), "Position out of boundary");
+    // get_node()->get_node_base_interface()->get_context()->shutdown();
+  }
   // Print the position of the palpation
   // RCLCPP_INFO_STREAM(get_node()->get_logger(), "Position x: " << pos->x << " y: " << pos->y);
   m_target_pose.pose.position.x = pos->x/1000.0 + m_boundary_x;
