@@ -93,15 +93,18 @@ EndEffectorControl::on_activate(const rclcpp_lifecycle::State & previous_state)
   }
 
   m_current_pose = getEndEffectorPose();
+  m_target_pose = m_current_pose;
   prev_pos = m_current_pose.pose.position.z;
   m_starting_position = m_current_pose.pose.position;
+  m_starting_position.x = -0.0749988 - 0.015; // -0.0749988;
+  m_starting_position.y = 0.416571 - 0.022; // 0.416571;
   // Print starting pos 
   std::cout << "Starting position: " << m_starting_position.x << ", " << m_starting_position.y << ", " << m_starting_position.z << std::endl;
   // m_starting_position.z -= 0.005;
   m_grid_position = m_starting_position;
-  // m_grid_position.x = -0.055691;
-  // m_grid_position.y = 0.454190; // 0.514197;//
-  m_sin_bias = 0.0008; // 0.0035;
+  m_grid_position.x = -0.0749988 - 0.015;
+  m_grid_position.y = 0.416571 - 0.022;
+  m_sin_bias = 0.004; // 0.0035;
   m_surface = m_current_pose.pose.position.z;
 
   m_force_bias = 0.0; 
@@ -128,7 +131,7 @@ EndEffectorControl::on_activate(const rclcpp_lifecycle::State & previous_state)
 
   m_contact = false;
 
-  m_surface =  -0.1636;//-0.16303381;-0.16366816577649224
+  m_surface =  -0.15;
   freq = 2.5;
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
@@ -177,8 +180,9 @@ controller_interface::return_type EndEffectorControl::update(const rclcpp::Time 
   //   return controller_interface::return_type::OK;
   //   RCLCPP_INFO_STREAM(get_node()->get_logger(), "End of palpation");
   // }
-  if (m_palpation_number>= 112)
+  if (m_palpation_number>= 21*21+5)
   {
+    RCLCPP_INFO_STREAM(get_node()->get_logger(), "End of palpation");
     return controller_interface::return_type::OK;
   }
   switch (m_phase)
@@ -207,31 +211,31 @@ controller_interface::return_type EndEffectorControl::update(const rclcpp::Time 
 
 void EndEffectorControl::gridPosition()
 {
-  // // The end effector will move to the position of the palpation
-  // if ( abs(m_target_pose.pose.position.x - m_grid_position.x) < 0.001)
-  // {
-  //   m_target_pose.pose.position.x = m_grid_position.x;
-  // }
-  // else
-  // {
-  //   m_target_pose.pose.position.x += std::copysign(0.005/500, m_grid_position.x - m_current_pose.pose.position.x);
-  // }
+  // The end effector will move to the position of the palpation
+  if ( abs(m_target_pose.pose.position.x - m_grid_position.x) < 0.001)
+  {
+    m_target_pose.pose.position.x = m_grid_position.x;
+  }
+  else
+  {
+    m_target_pose.pose.position.x += std::copysign(0.002/500, m_grid_position.x - m_current_pose.pose.position.x);
+  }
 
-  // if ( abs(m_target_pose.pose.position.y - m_grid_position.y) < 0.001)
-  // {
-  //   m_target_pose.pose.position.y = m_grid_position.y;
-  // }
-  // else
-  // {
-  //   m_target_pose.pose.position.y += std::copysign(0.005/500, m_grid_position.y - m_current_pose.pose.position.y);
-  // }
+  if ( abs(m_target_pose.pose.position.y - m_grid_position.y) < 0.001)
+  {
+    m_target_pose.pose.position.y = m_grid_position.y;
+  }
+  else
+  {
+    m_target_pose.pose.position.y += std::copysign(0.002/500, m_grid_position.y - m_current_pose.pose.position.y);
+  }
 
-  // m_target_pose.pose.position.z = m_starting_position.z;
+  m_target_pose.pose.position.z = m_starting_position.z;
 
-  // m_target_pose.header.stamp = get_node()->now();
-  // m_target_pose.header.frame_id = m_robot_base_link;
+  m_target_pose.header.stamp = get_node()->now();
+  m_target_pose.header.frame_id = m_robot_base_link;
 
-  // m_pose_publisher->publish(m_target_pose);
+  m_pose_publisher->publish(m_target_pose);
 
   // If the end effector is in the position of the palpation the phase is finished
   if (abs(m_current_pose.pose.position.x - m_grid_position.x) < 0.005 &&
@@ -307,14 +311,14 @@ void EndEffectorControl::tissuePalpation(const rclcpp::Time & time)
   
   // m_target_pose.pose.position.y = m_grid_position.y + 0.002 * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9);
   m_target_pose.pose.position.z =
-    m_grid_position.z - 0.0003 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 2); //+ 0.001 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 4);//- 0.001 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 4);
+    m_grid_position.z - 0.00175 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 2); //+ 0.001 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 4);//- 0.001 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 4);
   m_target_pose.header.stamp = get_node()->now();
   m_target_pose.header.frame_id = m_robot_base_link;
 
   m_pose_publisher->publish(m_target_pose);
 
   // If the time is greater than 5 seconds the phase is finished
-  if (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9 > 15)//(10 + 25))
+  if (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9 > 10)//(10 + 25))
   {
     // m_grid_position.z = m_grid_position.z -
     // 0.003 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 5);
@@ -367,8 +371,8 @@ void EndEffectorControl::startingHigh()
 void EndEffectorControl::newStartingPosition()
 { 
   m_palpation_number++;
-  // m_grid_position.x = m_starting_position.x + 0.0025 * (int)(m_palpation_number / 19);
-  // m_grid_position.y = m_starting_position.y + 0.0025 * (m_palpation_number % 19);
+  m_grid_position.x = m_starting_position.x + 0.0025 * (int)(m_palpation_number / 21);
+  m_grid_position.y = m_starting_position.y + 0.0025 * (m_palpation_number % 21);
   // if (m_palpation_number % 1 == 0 && m_palpation_number != 0)
   // {
   //   freq += 1.0;
