@@ -614,8 +614,8 @@ void CartesianAdaptiveComplianceController::getEndEffectorPoseReal()
   KDL::JntArray velocities(Base::m_joint_state_vel_handles.size());
   for (size_t i = 0; i < Base::m_joint_state_pos_handles.size(); ++i)
   {
-    positions(i) = Base::m_joint_state_pos_handles[i].get().get_optional().value();
-    velocities(i) = Base::m_joint_state_vel_handles[i].get().get_optional().value();
+    positions(i) = Base::m_joint_state_pos_handles[i].get().get_value();
+    velocities(i) = Base::m_joint_state_vel_handles[i].get().get_value();
   }
 
   KDL::JntArrayVel joint_data(positions, velocities);

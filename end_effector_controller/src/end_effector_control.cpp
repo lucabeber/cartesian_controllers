@@ -98,7 +98,7 @@ EndEffectorControl::on_activate(const rclcpp_lifecycle::State & previous_state)
   m_grid_position = m_starting_position;
   // m_grid_position.x = -0.055691;
   // m_grid_position.y = 0.454190; // 0.514197;//
-  m_sin_bias = 0.003;  // 0.0035;
+  m_sin_bias = 0.006;  // 0.0035;
   m_surface = m_current_pose.pose.position.z;
 
   m_force_bias = 0.0;
@@ -195,10 +195,10 @@ void EndEffectorControl::gridPosition()
   m_target_pose.pose.position.x = m_grid_position.x;
   m_target_pose.pose.position.y = m_grid_position.y;
   m_target_pose.pose.position.z = m_starting_position.z;
-  // m_target_pose.pose.orientation.x = 1.0;
-  // m_target_pose.pose.orientation.y = 0.0;
-  // m_target_pose.pose.orientation.z = 0;
-  // m_target_pose.pose.orientation.w = 0;
+  m_target_pose.pose.orientation.x = 1.0;
+  m_target_pose.pose.orientation.y = 0.0;
+  m_target_pose.pose.orientation.z = 0;
+  m_target_pose.pose.orientation.w = 0;
 
   m_target_pose.header.stamp = get_node()->now();
   m_target_pose.header.frame_id = m_robot_base_link;
@@ -222,19 +222,9 @@ void EndEffectorControl::gridPosition()
 
 void EndEffectorControl::surfaceApproach()
 {
-  // Publish a force of 3N in the z direction with reference frame probe
-  m_sinusoidal_force.header.stamp = get_node()->now();
-  m_sinusoidal_force.header.frame_id = m_end_effector_link;
-  m_sinusoidal_force.wrench.force.x = m_target_wrench(0);
-  m_sinusoidal_force.wrench.force.y = m_target_wrench(1);
-  m_sinusoidal_force.wrench.force.z = m_target_wrench(2);
-  m_sinusoidal_force.wrench.torque.x = 0.0;
-  m_sinusoidal_force.wrench.torque.y = 0.0;
-  m_sinusoidal_force.wrench.torque.z = 0.0;
-  m_force_publisher->publish(m_sinusoidal_force);
   // If the detected force in the z direction is greater than 10 N the phase is finished
-  if (m_current_pose.pose.position.z <= m_surface - m_sin_bias ||
-      m_ft_sensor_wrench(2) < -1.0)  // - 0.5 * m_palpation_number)
+  if (m_current_pose.pose.position.z <= m_surface - 0.005 ||
+      m_ft_sensor_wrench(2) < -2.0)  // - 0.5 * m_palpation_number)
   // if ( m_current_pose.pose.position.z  < -0.1304 )
   {
     std::cout << "Phase 3" << std::endl;
@@ -251,18 +241,22 @@ void EndEffectorControl::surfaceApproach()
     m_target_pose.pose.position.x = m_grid_position.x;
     m_target_pose.pose.position.y = m_grid_position.y;
     // m_grid_position.z -= (0.005 * (m_palpation_number + 1) ) / 500;
-    m_grid_position.z = m_grid_position.z +
-                        copysignf(1.0, m_surface - m_current_pose.pose.position.z) * (0.002) / 500;
+    m_grid_position.z = m_grid_position.z - (0.002) / 1000;
+                        // copysignf(1.0, m_surface - m_current_pose.pose.position.z) * (0.002) / 500;
     m_target_pose.pose.position.z = m_grid_position.z;
     m_prev_force = m_ft_sensor_wrench(2);
     initial_time = get_node()->now();
   }
 
-  if (m_ft_sensor_wrench(2) < -0.35)
+  if (m_ft_sensor_wrench(2) < -0.35 && m_contact == false)
   {
     RCLCPP_INFO_STREAM_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 1000,
                                 "Contact detected");
     m_contact = true;
+    m_surface_pos(0) = m_current_pose.pose.position.x;
+    m_surface_pos(1) = m_current_pose.pose.position.y;
+    m_surface_pos(2) = m_current_pose.pose.position.z;
+    m_surface = m_current_pose.pose.position.z;
   }
   else
   {
@@ -277,25 +271,34 @@ void EndEffectorControl::surfaceApproach()
 
 void EndEffectorControl::tissuePalpation(const rclcpp::Time & time)
 {
-  m_sinusoidal_force.wrench.force.z =
-    m_target_wrench(2) +
-    0.75 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 2);
-  m_sinusoidal_force.header.stamp = get_node()->now();
-  m_sinusoidal_force.header.frame_id = m_end_effector_link;
-  m_sinusoidal_force.wrench.force.x = m_target_wrench(0);
-  m_sinusoidal_force.wrench.force.y = m_target_wrench(1);
-  m_sinusoidal_force.wrench.torque.x = 0.0;
-  m_sinusoidal_force.wrench.torque.y = 0.0;
-  m_sinusoidal_force.wrench.torque.z = 0.0;
-  m_force_publisher->publish(m_sinusoidal_force);
-
   // Compute the orientation to keep the end effector perpendicular to the surface
   // m_target_pose.pose.orientation = setEndEffectorOrientation(m_current_pose.pose.orientation);
   m_target_pose.header.stamp = get_node()->now();
   m_target_pose.header.frame_id = m_robot_base_link;
 
+  // Sinusoidal movement in the z direction of the end effector
+  Eigen::Matrix3d R;
+  // Convert quaternion to rotation matrix
+  Eigen::Quaterniond q(
+    m_current_pose.pose.orientation.w, m_current_pose.pose.orientation.x,
+    m_current_pose.pose.orientation.y, m_current_pose.pose.orientation.z);
+  R = q.toRotationMatrix();
+  
+  // Compute the sinusoidal movement in the end effector frame
+  Eigen::Vector3d sinusoidal_movement_ee;
+  sinusoidal_movement_ee(0) = 0.0;
+  sinusoidal_movement_ee(1) = 0.0;
+  sinusoidal_movement_ee(2) = m_sin_bias + 0.003 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 2.5);
+
+  // Convert the sinusoidal movement to the base frame
+  Eigen::Vector3d sinusoidal_movement_base = R * sinusoidal_movement_ee;
+  m_target_pose.pose.position.x = m_surface_pos(0) + sinusoidal_movement_base(0);
+  m_target_pose.pose.position.y = m_surface_pos(1) + sinusoidal_movement_base(1);
+  m_target_pose.pose.position.z = m_surface_pos(2) + sinusoidal_movement_base(2);
+
+
   // If z posision is lower than 0.01 stop the controller with error
-  if (m_current_pose.pose.position.z < 0.85 || m_current_pose.pose.position.z > 0.93)
+  if (m_current_pose.pose.position.z < 0.003 || m_current_pose.pose.position.z > 0.3)
   {
     RCLCPP_ERROR(get_node()->get_logger(), "z Position out of boundary");
     RCLCPP_ERROR(get_node()->get_logger(), "z: %f", m_current_pose.pose.position.z);
@@ -438,13 +441,16 @@ void EndEffectorControl::publishDataEE(const rclcpp::Time & time)
   // Velocity in end effector frame
   Eigen::Vector3d v_ee = R.transpose() * v_base;
 
+  // Desired position in z direction in end effector frame
+
+
   // Print the velocity in z direction in end effector frame
   RCLCPP_INFO_STREAM(
     get_node()->get_logger(),
     "Velocity z ee frame: " << v_ee(2) << "  Velocity z base frame: " << m_cartesian_velocity(2));
 
   msg.data = {
-    (time.nanoseconds() * 1e-9), m_current_pose.pose.position.z, m_current_pose.pose.position.z,
+    (time.nanoseconds() * 1e-9), m_current_pose.pose.position.z, m_target_pose.pose.position.z,
     v_ee(2), m_ft_sensor_wrench(2),
     // std::sqrt( std::pow(m_ft_sensor_wrench(2), 2) + std::pow(m_ft_sensor_wrench(1), 2) + std::pow(m_ft_sensor_wrench(0), 2) ),
     (double)m_palpation_number, (double)m_phase, m_current_pose.pose.position.x,
@@ -490,7 +496,12 @@ EndEffectorControl::on_configure(const rclcpp_lifecycle::State & previous_state)
   urdf::Model robot_model;
   KDL::Tree robot_tree;
 
-  std::string robot_description = this->get_robot_description();
+  std::string robot_description;
+  if (!this->get_node()->get_parameter("robot_description", robot_description)) {
+    RCLCPP_ERROR(this->get_node()->get_logger(), "Failed to get robot_description parameter");
+    return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::ERROR;
+  }
+
   if (robot_description.empty())
   {
     RCLCPP_ERROR(get_node()->get_logger(), "robot_description is empty");
@@ -589,12 +600,6 @@ EndEffectorControl::on_configure(const rclcpp_lifecycle::State & previous_state)
     m_current_pose.pose.orientation.w, m_current_pose.pose.orientation.x,
     m_current_pose.pose.orientation.y, m_current_pose.pose.orientation.z);
   Eigen::AngleAxisd current_aa(current_quat);
-  m_sinusoidal_force.wrench.force.x = 0.0;
-  m_sinusoidal_force.wrench.force.y = 0.0;
-  m_sinusoidal_force.wrench.force.z = 15.0;
-  m_sinusoidal_force.wrench.torque.x = 0.0;
-  m_sinusoidal_force.wrench.torque.y = 0.0;
-  m_sinusoidal_force.wrench.torque.z = 0.0;
 
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
@@ -605,8 +610,8 @@ geometry_msgs::msg::PoseStamped EndEffectorControl::getEndEffectorPose()
   KDL::JntArray velocities(m_joint_state_pos_handles.size());
   for (size_t i = 0; i < m_joint_state_pos_handles.size(); ++i)
   {
-    positions(i) = m_joint_state_pos_handles[i].get().get_optional().value();
-    velocities(i) = m_joint_state_vel_handles[i].get().get_optional().value();
+    positions(i) = m_joint_state_pos_handles[i].get().get_value();
+    velocities(i) = m_joint_state_vel_handles[i].get().get_value();
   }
 
   KDL::JntArrayVel joint_data(positions, velocities);
@@ -767,10 +772,9 @@ void EndEffectorControl::targetPosCallback(const geometry_msgs::msg::PoseStamped
     return;
   }
 
-  m_target_pose.pose.position.x = pose->pose.position.x;
-  m_target_pose.pose.position.y = pose->pose.position.y;
-  m_surface = pose->pose.position.z;
-  m_target_pose.pose.position.z = pose->pose.position.z;
+  m_target_pose.pose.position.x = m_surface_pos[0];
+  m_target_pose.pose.position.y = m_surface_pos[1];
+  m_target_pose.pose.position.z = m_surface_pos[2];
   m_target_pose.pose.orientation.x = pose->pose.orientation.x;
   m_target_pose.pose.orientation.y = pose->pose.orientation.y;
   m_target_pose.pose.orientation.z = pose->pose.orientation.z;
@@ -808,7 +812,7 @@ Eigen::Vector3d EndEffectorControl::displayInBaseLink(const Eigen::Vector3d & ve
   KDL::JntArray positions(m_joint_state_pos_handles.size());
   for (size_t i = 0; i < m_joint_state_pos_handles.size(); ++i)
   {
-    positions(i) = m_joint_state_pos_handles[i].get().get_optional().value();
+    positions(i) = m_joint_state_pos_handles[i].get().get_value();
   }
 
   KDL::Frame transform_kdl;

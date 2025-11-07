@@ -171,6 +171,7 @@ private:
   Eigen::Vector3d m_ft_sensor_wrench;
   Eigen::Vector3d m_orientation_error;
   Eigen::Vector3d m_cartesian_velocity;
+  Eigen::Vector3d m_surface_pos;
   geometry_msgs::msg::Point m_starting_position;
   geometry_msgs::msg::Point m_grid_position;
   uint m_phase;
