@@ -191,6 +191,7 @@ public:
   float prev_pos;
   rclcpp::Time initial_time;
   rclcpp::Time prec_time;
+  double m_t_control;
 
   std::queue<std_msgs::msg::Float64MultiArray> msgs_queue;
 };
