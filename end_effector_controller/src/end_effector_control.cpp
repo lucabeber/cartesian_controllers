@@ -111,7 +111,7 @@ EndEffectorControl::on_activate(const rclcpp_lifecycle::State & previous_state)
   prev_pos = m_current_pose.pose.position.z;
   prec_time = get_node()->now();
 
-  m_phase = 1;
+  m_phase = 3;
   m_palpation_number = 0;
 
   m_contact = false;
@@ -213,7 +213,7 @@ void EndEffectorControl::gridPosition()
 
 void EndEffectorControl::surfaceApproach()
 {
-  if (m_ft_sensor_wrench(2) < -0.3 && m_contact == false)
+  if (m_ft_sensor_wrench(2) < 0.0 && m_contact == false)
   {
     RCLCPP_INFO_STREAM(get_node()->get_logger(), 
                                 "Contact detected");
@@ -274,7 +274,7 @@ void EndEffectorControl::tissuePalpation(const rclcpp::Time & time)
   Eigen::Vector3d sinusoidal_movement_ee;
   sinusoidal_movement_ee(0) = 0.0;
   sinusoidal_movement_ee(1) = 0.0;
-  sinusoidal_movement_ee(2) = m_sin_bias + 0.006 * sin(2.0 * M_PI * m_t_control * 2.0);
+  sinusoidal_movement_ee(2) = 0.06; // + 0.006 * sin(2.0 * M_PI * m_t_control * 2.0);
 
   // Convert the sinusoidal movement to the base frame
   Eigen::Vector3d sinusoidal_movement_base = R * sinusoidal_movement_ee;
@@ -282,25 +282,18 @@ void EndEffectorControl::tissuePalpation(const rclcpp::Time & time)
   m_target_pose.pose.position.y = m_surface_pos(1) + sinusoidal_movement_base(1);
   m_target_pose.pose.position.z = m_surface_pos(2) + sinusoidal_movement_base(2);
 
+  m_sinusoidal_force.wrench.force.z =
+    2.5 +
+    1.5 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 2);
+  m_sinusoidal_force.header.stamp = get_node()->now();
+  m_sinusoidal_force.header.frame_id = m_end_effector_link;
+  m_sinusoidal_force.wrench.force.x = 0.0;
+  m_sinusoidal_force.wrench.force.y = 0.0;
+  m_sinusoidal_force.wrench.torque.x = 0.0;
+  m_sinusoidal_force.wrench.torque.y = 0.0;
+  m_sinusoidal_force.wrench.torque.z = 0.0;
+  m_force_publisher->publish(m_sinusoidal_force);
 
-  // If z posision is lower than 0.01 stop the controller with error
-  // if (m_current_pose.pose.position.z < 0.003 || m_current_pose.pose.position.z > 0.3)
-  // {
-  //   RCLCPP_ERROR(get_node()->get_logger(), "z Position out of boundary");
-  //   RCLCPP_ERROR(get_node()->get_logger(), "z: %f", m_current_pose.pose.position.z);
-  //   rclcpp::shutdown();
-  // }
-  // // if x position is grater or smaller of 5 cm from the starting position kill the node
-  // if (std::abs(m_current_pose.pose.position.x - m_starting_position.x) > 0.7 ||
-  //     std::abs(m_current_pose.pose.position.y - m_starting_position.y) > 0.7 ||
-  //     std::abs(m_target_pose.pose.position.x - m_starting_position.x) > 0.7 ||
-  //     std::abs(m_target_pose.pose.position.y - m_starting_position.x) > 0.7)
-  // {
-  //   RCLCPP_ERROR(get_node()->get_logger(), "x/y Position out of boundary");
-  //   RCLCPP_ERROR(get_node()->get_logger(), "x: %f, y: %f", m_current_pose.pose.position.x,
-  //                m_current_pose.pose.position.y);
-  //   rclcpp::shutdown();
-  // }
   m_pose_publisher->publish(m_target_pose);
 
   // If the time is greater than 5 seconds the phase is finished
@@ -316,6 +309,10 @@ void EndEffectorControl::tissuePalpation(const rclcpp::Time & time)
       msgs_queue.pop();
     }
     m_contact = false;
+
+    // Set target force to zero
+    m_sinusoidal_force.wrench.force.z = 0.0;
+    m_force_publisher->publish(m_sinusoidal_force);
   }
 
   m_t_control += 0.001;
@@ -708,16 +705,34 @@ void EndEffectorControl::ftSensorWrenchCallback(
   m_ft_sensor_wrench(1) = tmp[1];
   m_ft_sensor_wrench(2) = tmp[2];
 
-  if (m_phase == 2 && m_force_sample_flag == false)
-  {
-    m_force_bias += m_ft_sensor_wrench(2);
-    m_force_sample++;
-    if (m_force_sample == 500)
-    {
-      m_force_bias = m_force_bias / 500;
-      m_force_sample_flag = true;
-    }
-  }
+  //   // ---------------- Gravity compensation ----------------
+  // // m_mass: mass of the attached object [kg]
+  // // m_com: center of mass of the attached object in sensor frame [KDL::Vector]
+  // double m_mass = 0.135617; // [kg]
+  // if (m_mass > 0.0)
+  // {
+  //   // Gravity in base frame
+  //   KDL::Vector gravity_base(0.0, 0.0, -9.8067); // [m/s^2]
+
+  //   // Mass initial offset in sensor frame
+  //   KDL::Vector F_offset(0.0, 0.0, m_mass * 9.8067); // [N]
+
+  //   // Rotate gravity to sensor frame using EE orientation
+  //   KDL::Rotation R_ee = KDL::Rotation::Quaternion(
+  //     m_current_pose.pose.orientation.x,
+  //     m_current_pose.pose.orientation.y,
+  //     m_current_pose.pose.orientation.z,
+  //     m_current_pose.pose.orientation.w);
+  //   KDL::Vector gravity_sensor = R_ee.Inverse() * gravity_base;
+
+  //   // Force due to gravity
+  //   KDL::Vector F_gravity = m_mass * gravity_sensor;
+
+  //   // Subtract gravity effect from measured wrench
+  //   m_ft_sensor_wrench[0] -= F_gravity.x();
+  //   m_ft_sensor_wrench[1] -= F_gravity.y();
+  //   m_ft_sensor_wrench[2] -= F_gravity.z() - F_offset.z();
+  // }
 }
 
 void EndEffectorControl::targetPosCallback(const geometry_msgs::msg::PoseStamped::SharedPtr pose)
@@ -738,9 +753,9 @@ void EndEffectorControl::targetPosCallback(const geometry_msgs::msg::PoseStamped
     rclcpp::shutdown();
     return;
   }
-  if (std::abs(m_target_pose.pose.position.x - pose->pose.position.x) > 0.04 ||
-      std::abs(m_target_pose.pose.position.y - pose->pose.position.y) > 0.04 ||
-      std::abs(m_target_pose.pose.position.z - pose->pose.position.z) > 0.04)
+  if (std::abs(m_target_pose.pose.position.x - pose->pose.position.x) > 0.1 ||
+      std::abs(m_target_pose.pose.position.y - pose->pose.position.y) > 0.1 ||
+      std::abs(m_target_pose.pose.position.z - pose->pose.position.z) > 0.1)
   {
     RCLCPP_ERROR(get_node()->get_logger(), "Commanded position change exceeds 1mm. Shutting down.");
     RCLCPP_ERROR(get_node()->get_logger(), "Target position x: %f, y: %f, z: %f",
