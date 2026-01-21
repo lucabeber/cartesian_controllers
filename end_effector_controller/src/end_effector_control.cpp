@@ -378,45 +378,8 @@ controller_interface::InterfaceConfiguration EndEffectorControl::command_interfa
 void EndEffectorControl::publishDataEE(const rclcpp::Time & time)
 {
   // Publish state
-  // time, current position, target position, velocity, force
-  // std_msgs::msg::Float64MultiArray msg;
-  // msg.data = {(time.nanoseconds() * 1e-9), m_current_pose.pose.position.z,
-  //             m_target_pose.pose.position.z, m_cartesian_velocity(2), m_ft_sensor_wrench(2), (double)m_palpation_number};
-  // m_data_publisher->publish(msg);
-
-  // Publish state
   std_msgs::msg::Float64MultiArray msg;
-  // msg.data = {(time.nanoseconds() * 1e-9), m_current_pose.pose.position.z,
-  //             m_target_pose.pose.position.z, m_cartesian_velocity(2), m_ft_sensor_wrench(2)};
-  // m_data_publisher->publish(msg);
-  // if (m_phase == 3)
-  // {
-  //   if (msgs_queue.size() < 15)
-  //   {
-  //     msg.data = {(time.nanoseconds() * 1e-9), m_current_pose.pose.position.z,
-  //               m_target_pose.pose.position.z, m_cartesian_velocity(2), 0, (double)m_palpation_number, (double)m_phase, m_current_pose.pose.position.x, m_current_pose.pose.position.y};
-  //     msgs_queue.push(msg);
-  //   }
-  //   else
-  //   {
-  //     msgs_queue.front().data[4] = m_ft_sensor_wrench(2) - m_force_bias;
-  //     m_data_publisher->publish(msgs_queue.front());
 
-  //     msgs_queue.pop();
-  //     msg.data = {(time.nanoseconds() * 1e-9), m_current_pose.pose.position.z,
-  //               m_target_pose.pose.position.z, m_cartesian_velocity(2), 0, (double)m_palpation_number, (double)m_phase, m_current_pose.pose.position.x, m_current_pose.pose.position.y};
-  //     msgs_queue.push(msg);
-  //   }
-  // }
-  // if (m_phase == 3)
-  // {
-  //   msg.data = {(time.nanoseconds() * 1e-9), m_current_pose.pose.position.z,
-  //               m_target_pose.pose.position.z, m_cartesian_velocity(2), m_ft_sensor_wrench(2) - m_force_bias, (double)m_palpation_number, (double)m_phase, m_current_pose.pose.position.x, m_current_pose.pose.position.y};
-  //   m_data_publisher->publish(msg);
-  // }
-
-  // compute the velocity in z direction of the end effector from the velocity in the base frame and the orientation of the end effector
-  // Rotation matrix from quaternion
   Eigen::Quaterniond q(m_current_pose.pose.orientation.w, m_current_pose.pose.orientation.x,
                        m_current_pose.pose.orientation.y, m_current_pose.pose.orientation.z);
   Eigen::Matrix3d R = q.toRotationMatrix();
@@ -705,34 +668,34 @@ void EndEffectorControl::ftSensorWrenchCallback(
   m_ft_sensor_wrench(1) = tmp[1];
   m_ft_sensor_wrench(2) = tmp[2];
 
-  //   // ---------------- Gravity compensation ----------------
-  // // m_mass: mass of the attached object [kg]
-  // // m_com: center of mass of the attached object in sensor frame [KDL::Vector]
-  // double m_mass = 0.135617; // [kg]
-  // if (m_mass > 0.0)
-  // {
-  //   // Gravity in base frame
-  //   KDL::Vector gravity_base(0.0, 0.0, -9.8067); // [m/s^2]
+    // ---------------- Gravity compensation ----------------
+  // m_mass: mass of the attached object [kg]
+  // m_com: center of mass of the attached object in sensor frame [KDL::Vector]
+  double m_mass = 0.135617; // [kg]
+  if (m_mass > 0.0)
+  {
+    // Gravity in base frame
+    KDL::Vector gravity_base(0.0, 0.0, -9.8067); // [m/s^2]
 
-  //   // Mass initial offset in sensor frame
-  //   KDL::Vector F_offset(0.0, 0.0, m_mass * 9.8067); // [N]
+    // Mass initial offset in sensor frame
+    KDL::Vector F_offset(0.0, 0.0, m_mass * 9.8067); // [N]
 
-  //   // Rotate gravity to sensor frame using EE orientation
-  //   KDL::Rotation R_ee = KDL::Rotation::Quaternion(
-  //     m_current_pose.pose.orientation.x,
-  //     m_current_pose.pose.orientation.y,
-  //     m_current_pose.pose.orientation.z,
-  //     m_current_pose.pose.orientation.w);
-  //   KDL::Vector gravity_sensor = R_ee.Inverse() * gravity_base;
+    // Rotate gravity to sensor frame using EE orientation
+    KDL::Rotation R_ee = KDL::Rotation::Quaternion(
+      m_current_pose.pose.orientation.x,
+      m_current_pose.pose.orientation.y,
+      m_current_pose.pose.orientation.z,
+      m_current_pose.pose.orientation.w);
+    KDL::Vector gravity_sensor = R_ee.Inverse() * gravity_base;
 
-  //   // Force due to gravity
-  //   KDL::Vector F_gravity = m_mass * gravity_sensor;
+    // Force due to gravity
+    KDL::Vector F_gravity = m_mass * gravity_sensor;
 
-  //   // Subtract gravity effect from measured wrench
-  //   m_ft_sensor_wrench[0] -= F_gravity.x();
-  //   m_ft_sensor_wrench[1] -= F_gravity.y();
-  //   m_ft_sensor_wrench[2] -= F_gravity.z() - F_offset.z();
-  // }
+    // Subtract gravity effect from measured wrench
+    m_ft_sensor_wrench[0] -= F_gravity.x();
+    m_ft_sensor_wrench[1] -= F_gravity.y();
+    m_ft_sensor_wrench[2] -= F_gravity.z() - F_offset.z();
+  }
 }
 
 void EndEffectorControl::targetPosCallback(const geometry_msgs::msg::PoseStamped::SharedPtr pose)
