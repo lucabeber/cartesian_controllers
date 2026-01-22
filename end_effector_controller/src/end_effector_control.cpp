@@ -129,6 +129,18 @@ EndEffectorControl::on_deactivate(const rclcpp_lifecycle::State & previous_state
   m_joint_state_pos_handles.clear();
   m_joint_state_vel_handles.clear();
   this->release_interfaces();
+
+  // Send message to set zero desired force at the end effector
+  m_sinusoidal_force.wrench.force.z = 0.0;
+  m_sinusoidal_force.header.stamp = get_node()->now();
+  m_sinusoidal_force.header.frame_id = m_end_effector_link;
+  m_sinusoidal_force.wrench.force.x = 0.0;
+  m_sinusoidal_force.wrench.force.y = 0.0;
+  m_sinusoidal_force.wrench.torque.x = 0.0;
+  m_sinusoidal_force.wrench.torque.y = 0.0;
+  m_sinusoidal_force.wrench.torque.z = 0.0;
+  m_force_publisher->publish(m_sinusoidal_force);
+
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
@@ -283,8 +295,7 @@ void EndEffectorControl::tissuePalpation(const rclcpp::Time & time)
   m_target_pose.pose.position.z = m_surface_pos(2) + sinusoidal_movement_base(2);
 
   m_sinusoidal_force.wrench.force.z =
-    2.5 +
-    1.5 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 2);
+    2.5 + 1.5 * sin(2 * M_PI * (m_t_control) * 2);
   m_sinusoidal_force.header.stamp = get_node()->now();
   m_sinusoidal_force.header.frame_id = m_end_effector_link;
   m_sinusoidal_force.wrench.force.x = 0.0;
@@ -303,6 +314,7 @@ void EndEffectorControl::tissuePalpation(const rclcpp::Time & time)
     // 0.003 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 5);
     // m_grid_position.y = m_target_pose.pose.position.y;
     std::cout << "Phase 4" << std::endl;
+    std::cout << "Registered ee force" << std::endl; 
     m_phase = 4;
     while (!msgs_queue.empty())
     {
