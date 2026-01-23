@@ -286,7 +286,7 @@ void EndEffectorControl::tissuePalpation(const rclcpp::Time & time)
   Eigen::Vector3d sinusoidal_movement_ee;
   sinusoidal_movement_ee(0) = 0.0;
   sinusoidal_movement_ee(1) = 0.0;
-  sinusoidal_movement_ee(2) = 0.06; // + 0.006 * sin(2.0 * M_PI * m_t_control * 2.0);
+  sinusoidal_movement_ee(2) = 0.0; // + 0.006 * sin(2.0 * M_PI * m_t_control * 2.0);
 
   // Convert the sinusoidal movement to the base frame
   Eigen::Vector3d sinusoidal_movement_base = R * sinusoidal_movement_ee;
