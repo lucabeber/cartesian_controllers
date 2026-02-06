@@ -308,13 +308,13 @@ void EndEffectorControl::tissuePalpation(const rclcpp::Time & time)
   m_pose_publisher->publish(m_target_pose);
 
   // If the time is greater than 5 seconds the phase is finished
-  if ((time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9 > 1000) || m_ft_sensor_wrench(2) < -7.0)  //(10 + 25))
+  if ((time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9 > 1000) || m_ft_sensor_wrench(2) < -8.0)  //(10 + 25))
   {
     // m_grid_position.z = m_grid_position.z -
     // 0.003 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 5);
     // m_grid_position.y = m_target_pose.pose.position.y;
     std::cout << "Phase 4" << std::endl;
-    std::cout << "Registered ee force" << std::endl; 
+    std::cout << "Registered ee force: " << m_ft_sensor_wrench(2) << std::endl; 
     m_phase = 4;
     while (!msgs_queue.empty())
     {
@@ -721,7 +721,7 @@ void EndEffectorControl::targetPosCallback(const geometry_msgs::msg::PoseStamped
   // }
   // Print the position of the palpation
   // RCLCPP_INFO_STREAM(get_node()->get_logger(), "Position x: " << pos->x << " y: " << pos->y);
-  if (pose->pose.position.z > 0.93 || pose->pose.position.z < 0.0)
+  if (pose->pose.position.z > 0.93 || pose->pose.position.z < -0.05)
   {
     RCLCPP_ERROR(get_node()->get_logger(), "Commanded z position exceeds 0.9 m. Shutting down.");
     RCLCPP_ERROR(get_node()->get_logger(), "Target position z: %f", pose->pose.position.z);
@@ -742,10 +742,10 @@ void EndEffectorControl::targetPosCallback(const geometry_msgs::msg::PoseStamped
     return;
   }
 
-  if (std::abs(m_target_pose.pose.orientation.x - pose->pose.orientation.x) > 0.4 ||
-      std::abs(m_target_pose.pose.orientation.y - pose->pose.orientation.y) > 0.4 ||
-      std::abs(m_target_pose.pose.orientation.z - pose->pose.orientation.z) > 0.4 ||
-      std::abs(m_target_pose.pose.orientation.w - pose->pose.orientation.w) > 0.4)
+  if (std::abs(m_target_pose.pose.orientation.x - pose->pose.orientation.x) > 0.1 ||
+      std::abs(m_target_pose.pose.orientation.y - pose->pose.orientation.y) > 0.1 ||
+      std::abs(m_target_pose.pose.orientation.z - pose->pose.orientation.z) > 0.1 ||
+      std::abs(m_target_pose.pose.orientation.w - pose->pose.orientation.w) > 0.1)
   {
     RCLCPP_ERROR(get_node()->get_logger(),
                  "Commanded orientation change exceeds 0.2. Shutting down.");
