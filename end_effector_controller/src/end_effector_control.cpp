@@ -295,7 +295,8 @@ void EndEffectorControl::tissuePalpation(const rclcpp::Time & time)
   m_target_pose.pose.position.z = m_surface_pos(2) + sinusoidal_movement_base(2);
 
   m_sinusoidal_force.wrench.force.z =
-    2.5 + 1.5 * sin(2 * M_PI * (m_t_control) * 2);
+    4.25 + 2.750 * sin(2 * M_PI * (m_t_control) * 2); // dimple
+    // 2.5 + 1.5 * sin(2 * M_PI * (m_t_control) * 2); phere
   m_sinusoidal_force.header.stamp = get_node()->now();
   m_sinusoidal_force.header.frame_id = m_end_effector_link;
   m_sinusoidal_force.wrench.force.x = 0.0;
@@ -308,7 +309,7 @@ void EndEffectorControl::tissuePalpation(const rclcpp::Time & time)
   m_pose_publisher->publish(m_target_pose);
 
   // If the time is greater than 5 seconds the phase is finished
-  if ((time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9 > 1000) || m_ft_sensor_wrench(2) < -8.0)  //(10 + 25))
+  if (m_ft_sensor_wrench(2) < -12.0)  //(10 + 25))
   {
     // m_grid_position.z = m_grid_position.z -
     // 0.003 * sin(2 * M_PI * (time.nanoseconds() * 1e-9 - initial_time.nanoseconds() * 1e-9) * 5);
@@ -332,27 +333,27 @@ void EndEffectorControl::tissuePalpation(const rclcpp::Time & time)
 
 void EndEffectorControl::startingHigh()
 {
-  if (m_current_pose.pose.position.z < m_starting_position.z)
-  {
-    m_grid_position.z += (0.005) / 500;
-  }
-  else
-  {
-    m_grid_position.z = m_starting_position.z;
-  }
+  // if (m_current_pose.pose.position.z < m_starting_position.z)
+  // {
+  //   m_grid_position.z += (0.005) / 500;
+  // }
+  // else
+  // {
+  //   m_grid_position.z = m_starting_position.z;
+  // }
 
-  // m_target_pose.pose.position.x = m_grid_position.x;
-  // m_target_pose.pose.position.y = m_grid_position.y;
-  m_target_pose.pose.position.z = m_grid_position.z;
+  // // m_target_pose.pose.position.x = m_grid_position.x;
+  // // m_target_pose.pose.position.y = m_grid_position.y;
+  // m_target_pose.pose.position.z = m_grid_position.z;
 
-  // m_target_pose.pose.orientation.x = 1.0;
-  // m_target_pose.pose.orientation.y = 0.0;
-  // m_target_pose.pose.orientation.z = 0;
-  // m_target_pose.pose.orientation.w = 0;
-  m_target_pose.header.stamp = get_node()->now();
-  m_target_pose.header.frame_id = m_robot_base_link;
+  // // m_target_pose.pose.orientation.x = 1.0;
+  // // m_target_pose.pose.orientation.y = 0.0;
+  // // m_target_pose.pose.orientation.z = 0;
+  // // m_target_pose.pose.orientation.w = 0;
+  // m_target_pose.header.stamp = get_node()->now();
+  // m_target_pose.header.frame_id = m_robot_base_link;
 
-  m_pose_publisher->publish(m_target_pose);
+  // m_pose_publisher->publish(m_target_pose);
 
   // If the end effector is the starting high the phase is finished
   if (abs(m_current_pose.pose.position.z - m_starting_position.z) < 0.001)
