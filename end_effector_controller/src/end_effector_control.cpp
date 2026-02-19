@@ -126,7 +126,7 @@ EndEffectorControl::on_activate(const rclcpp_lifecycle::State & previous_state)
 
   m_contact = false;
 
-  m_surface = -0.15;
+  m_surface = -0.12299384357507837;//-0.15;
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
@@ -545,8 +545,8 @@ EndEffectorControl::on_configure(const rclcpp_lifecycle::State & previous_state)
   m_sinusoidal_force.wrench.torque.z = 0.0;
 
   // Set boundary for the palpation
-  m_boundary_x = -0.0749988 - 0.015;
-  m_boundary_y = 0.416571 - 0.022;
+  m_boundary_x = -0.09348578307836174;  // -0.08
+  m_boundary_y = 0.4706498459379745;
 
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
